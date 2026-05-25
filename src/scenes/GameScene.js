@@ -12,9 +12,9 @@ export default class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
 
     // 배경: 화면에 고정된 tileSprite (카메라 스크롤 기반으로 별이 흘러가는 효과)
-    this.bgFar  = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
+    this.bgFar = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
       .setScrollFactor(0).setDepth(-3);
-    this.bgMid  = this.add.tileSprite(480, 320, 960, 640, 'bg_space_mid')
+    this.bgMid = this.add.tileSprite(480, 320, 960, 640, 'bg_space_mid')
       .setScrollFactor(0).setDepth(-2);
     this.bgNear = this.add.tileSprite(480, 320, 960, 640, 'bg_space_near')
       .setScrollFactor(0).setDepth(-1);
@@ -36,6 +36,58 @@ export default class GameScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,SHIFT,R,SPACE');
 
     this.enemyManager.start();
+
+    this.expOrbs = this.physics.add.group();
+
+    this.physics.add.overlap(
+      this.player.sprite,
+      this.expOrbs,
+      (player, orb) => {
+        this.player.gainExp(orb.expValue || 1);
+
+        // 경험치 먹는 효과
+        this.tweens.add({
+          targets: orb,
+          scale: 1.8,
+          alpha: 0,
+          duration: 120,
+          onComplete: () => orb.destroy()
+        });
+      }
+    );
+
+    // 플레이어 총알 ↔ 일반 적
+    this.physics.add.overlap(
+      this.player.bullets,
+      this.enemyManager.group,
+      (bullet, enemySprite) => {
+        if (!bullet.active || !enemySprite.active) return;
+
+        const enemy = enemySprite.parentRef;
+        if (!enemy) return;
+
+        enemy.takeDamage(this.player.attackPower);
+
+        // 총알 제거
+        bullet.destroy();
+      }
+    );
+
+    // 플레이어 총알 ↔ 보스
+    this.physics.add.overlap(
+      this.player.bullets,
+      this.enemyManager.bossGroup,
+      (bullet, bossSprite) => {
+        if (!bullet.active || !bossSprite.active) return;
+
+        const boss = bossSprite.parentRef;
+        if (!boss) return;
+
+        boss.takeDamage(this.player.attackPower);
+
+        bullet.destroy();
+      }
+    );
   }
 
   update(time, delta) {
@@ -45,10 +97,10 @@ export default class GameScene extends Phaser.Scene {
     // ★ 배경이 카메라 이동에 따라 자연스럽게 흘러가는 시차 효과
     // 멀리 있는 별은 천천히, 가까운 별은 빠르게 흘러서 입체감 부여
     const cam = this.cameras.main;
-    this.bgFar.tilePositionX  = cam.scrollX * 0.3;
-    this.bgFar.tilePositionY  = cam.scrollY * 0.3;
-    this.bgMid.tilePositionX  = cam.scrollX * 0.6;
-    this.bgMid.tilePositionY  = cam.scrollY * 0.6;
+    this.bgFar.tilePositionX = cam.scrollX * 0.3;
+    this.bgFar.tilePositionY = cam.scrollY * 0.3;
+    this.bgMid.tilePositionX = cam.scrollX * 0.6;
+    this.bgMid.tilePositionY = cam.scrollY * 0.6;
     this.bgNear.tilePositionX = cam.scrollX * 1.0;
     this.bgNear.tilePositionY = cam.scrollY * 1.0;
 

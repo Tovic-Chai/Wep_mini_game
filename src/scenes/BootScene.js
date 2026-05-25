@@ -52,8 +52,17 @@ export default class BootScene extends Phaser.Scene {
 
     // 4) 배경 3중 (별 밀도 다르게)
     this.makeStarTexture('bg_space_far', 960, 640, 200, 1, true);
-    this.makeStarTexture('bg_space_mid', 960, 640, 60,  2, false);
-    this.makeStarTexture('bg_space_near',960, 640, 25,  3, false);
+    this.makeStarTexture('bg_space_mid', 960, 640, 60, 2, false);
+    this.makeStarTexture('bg_space_near', 960, 640, 25, 3, false);
+
+    // 5) 경험치 구슬
+    g = this.add.graphics();
+    g.fillStyle(0x44ff88, 1);
+    g.fillCircle(6, 6, 6);
+    g.lineStyle(2, 0xffffff, 1);
+    g.strokeCircle(6, 6, 6);
+    g.generateTexture('exp_orb', 12, 12);
+    g.destroy();
   }
 
   makeStarTexture(key, w, h, count, radius, opaque) {

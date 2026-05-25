@@ -59,6 +59,23 @@ export default class Enemy {
     emitter.explode(8);
     this.scene.time.delayedCall(500, () => emitter.destroy());
 
+    // 경험치 드랍
+    const orb = this.scene.physics.add.image(
+      this.sprite.x,
+      this.sprite.y,
+      'exp_orb'
+    );
+
+    orb.expValue = this.expValue;
+    orb.setDepth(1);
+    orb.setScale(1);
+
+    if (!this.scene.expOrbs) {
+      this.scene.expOrbs = this.scene.physics.add.group();
+    }
+
+    this.scene.expOrbs.add(orb);
+
     this.sprite.destroy();
   }
 

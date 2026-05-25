@@ -15,9 +15,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.alive = true;
     this.attackTimer = 0;
 
-    if (kind === 'mini1') { this.hp = 1500; this.skill = { id:'slow',      name:'시간 슬로우', duration:5, cooldown:45, effect:'timeSlow'  }; }
-    else if (kind === 'mini2') { this.hp = 2500; this.skill = { id:'blackhole', name:'블랙홀',     duration:3, cooldown:60, effect:'blackhole' }; }
-    else if (kind === 'mini3') { this.hp = 4000; this.skill = { id:'clone',     name:'분신',       duration:8, cooldown:75, effect:'clone'     }; }
+    if (kind === 'mini1') { this.hp = 1500; this.skill = { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' }; }
+    else if (kind === 'mini2') { this.hp = 2500; this.skill = { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' }; }
+    else if (kind === 'mini3') { this.hp = 4000; this.skill = { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' }; }
     else { this.hp = 15000; this.skill = null; this.phase = 1; }
 
     this.angleOffset = 0;
@@ -32,8 +32,34 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
     if (this.kind === 'final') {
       if (this.phase === 1 && this.hp <= 10000) this.setPhase(2);
-      if (this.phase === 2 && this.hp <= 5000)  this.setPhase(3);
+      if (this.phase === 2 && this.hp <= 5000) this.setPhase(3);
     }
+
+    // 플레이어 추적
+    const player = this.scene.player.sprite;
+
+    const angle = Phaser.Math.Angle.Between(
+      this.sprite.x,
+      this.sprite.y,
+      player.x,
+      player.y
+    );
+
+    let moveSpeed = 45;
+
+    if (this.kind === 'mini2') moveSpeed = 55;
+    if (this.kind === 'mini3') moveSpeed = 70;
+
+    if (this.kind === 'final') {
+      if (this.phase === 1) moveSpeed = 60;
+      if (this.phase === 2) moveSpeed = 85;
+      if (this.phase === 3) moveSpeed = 110;
+    }
+
+    this.sprite.setVelocity(
+      Math.cos(angle) * moveSpeed,
+      Math.sin(angle) * moveSpeed
+    );
   }
 
   firePattern() {

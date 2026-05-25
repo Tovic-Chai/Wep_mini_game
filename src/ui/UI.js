@@ -11,8 +11,8 @@ export default class UI {
     this.timerText = s.add.text(420, 12, '10:00',  { fontSize:'18px', color:'#fff' }).setDepth(20).setScrollFactor(0);
     this.skillIcons = {
       Q: s.add.text(12,  600, 'Q: -', { fontSize:'14px', color:'#0f0' }).setDepth(20).setScrollFactor(0),
-      W: s.add.text(120, 600, 'W: -', { fontSize:'14px', color:'#0f0' }).setDepth(20).setScrollFactor(0),
-      E: s.add.text(228, 600, 'E: -', { fontSize:'14px', color:'#0f0' }).setDepth(20).setScrollFactor(0)
+      E: s.add.text(120, 600, 'E: -', { fontSize:'14px', color:'#0f0' }).setDepth(20).setScrollFactor(0),
+      C: s.add.text(228, 600, 'C: -', { fontSize:'14px', color:'#0f0' }).setDepth(20).setScrollFactor(0)
     };
     this.resultText = s.add.text(240, 260, '', { fontSize:'28px', color:'#fff', align:'center' }).setDepth(30).setVisible(false);
   }
@@ -23,7 +23,7 @@ export default class UI {
     const mm = String(Math.floor(remain / 60)).padStart(2, '0');
     const ss = String(remain % 60).padStart(2, '0');
     this.timerText.setText(`${mm}:${ss}`);
-    for (const k of ['Q', 'W', 'E']) {
+    for (const k of ['Q', 'E', 'C']) {
       const s = this.player.skills[k];
       this.skillIcons[k].setText(`${k}: ${s ? s.name : '-'}`);
     }
