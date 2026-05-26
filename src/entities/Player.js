@@ -133,7 +133,7 @@ export default class Player {
     let nearest = null;
     let minDist = Infinity;
 
-    // 일반 적 탐색
+    // 일반 적 찾기
     this.scene.enemyManager.group.children.each(enemy => {
       if (!enemy.active) return;
 
@@ -150,7 +150,7 @@ export default class Player {
       }
     });
 
-    // 보스 탐색
+    // 보스 찾기
     this.scene.enemyManager.bossGroup.children.each(enemy => {
       if (!enemy.active) return;
 
@@ -167,7 +167,7 @@ export default class Player {
       }
     });
 
-    // 적 없으면 공격 안 함
+    // 적 없으면 발사 안 함
     if (!nearest) return;
 
     // 방향 계산
@@ -185,29 +185,33 @@ export default class Player {
       'bullet'
     );
 
+    bullet.setDepth(10);
+
     bullet.isPlayerBullet = true;
 
-    // 총알 회전
-    bullet.setRotation(angle);
+    // 크기
+    bullet.setScale(1.3);
 
-    // 총알 크기
-    bullet.setScale(1.2);
+    // 회전
+    bullet.rotation = angle;
 
-    // 총알 속도
+    // 속도
     const speed = 700;
 
-    bullet.body.velocity.x = Math.cos(angle) * speed;
-    bullet.body.velocity.y = Math.sin(angle) * speed;
+    bullet.setVelocity(
+      Math.cos(angle) * speed,
+      Math.sin(angle) * speed
+    );
 
     // 그룹 추가
     this.bullets.add(bullet);
 
-    // 총구 이펙트
+    // 발사 이펙트
     this.scene.tweens.add({
       targets: bullet,
       scaleX: 1,
       scaleY: 1,
-      duration: 100
+      duration: 80
     });
   }
 
@@ -227,14 +231,36 @@ export default class Player {
 
   levelUp() {
     this.level++;
-    this.expToNext = Math.floor(this.expToNext * 1.4);
-    const choices = [
-      () => { this.attackPower += 2; },
-      () => { this.attackRate = Math.max(0.1, this.attackRate - 0.05); },
-      () => { this.maxHp += 10; this.hp += 10; }
-    ];
-    const idx = Phaser.Math.Between(0, choices.length - 1);
-    choices[idx]();
+
+    this.expToNext = Math.floor(this.expToNext * 1.35);
+
+    // 레벨업 선택창 호출
+    this.scene.showLevelUpCards();
+
+    // 레벨업 연출
+    this.scene.cameras.main.flash(200, 100, 255, 100);
+
+    const txt = this.scene.add.text(
+      this.sprite.x,
+      this.sprite.y - 60,
+      `LEVEL UP! ${this.level}`,
+      {
+        fontSize: '24px',
+        color: '#44ff88',
+        stroke: '#000',
+        strokeThickness: 4
+      }
+    )
+      .setOrigin(0.5)
+      .setDepth(50);
+
+    this.scene.tweens.add({
+      targets: txt,
+      y: txt.y - 40,
+      alpha: 0,
+      duration: 1200,
+      onComplete: () => txt.destroy()
+    });
   }
 
   acquireSkill(skillData) {

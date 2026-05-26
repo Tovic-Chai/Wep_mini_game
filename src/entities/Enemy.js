@@ -42,8 +42,21 @@ export default class Enemy {
 
   takeDamage(amount) {
     if (!this.alive) return;
+
     this.hp -= amount;
-    if (this.hp <= 0) this.die();
+
+    // 피격 효과
+    this.sprite.setTint(0xff4444);
+
+    this.scene.time.delayedCall(80, () => {
+      if (this.sprite.active) {
+        this.sprite.clearTint();
+      }
+    });
+
+    if (this.hp <= 0) {
+      this.die();
+    }
   }
 
   die() {

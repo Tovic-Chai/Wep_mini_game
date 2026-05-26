@@ -9,7 +9,12 @@ export default class Boss extends Phaser.Events.EventEmitter {
     if (kind === 'mini3') key = 'boss_mini3';
     if (kind === 'final') key = 'boss_final_phase1';
 
-    const scale = (kind === 'final') ? 0.6 : 0.45;
+    let scale = 0.3;
+
+    if (kind === 'mini1') scale = 0.2;
+    if (kind === 'mini2') scale = 0.3;
+    if (kind === 'mini3') scale = 0.26;
+    if (kind === 'final') scale = 0.4;
     this.sprite = scene.physics.add.sprite(x, y, key).setDepth(3).setScale(scale);
     this.sprite.parentRef = this;
     this.alive = true;
