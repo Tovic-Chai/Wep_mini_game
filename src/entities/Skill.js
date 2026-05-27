@@ -82,8 +82,9 @@ export default class Skill {
     for (let i = 0; i < 2; i++) {
       const cx = player.sprite.x + (i === 0 ? -70 : 70);
       const cy = player.sprite.y;
-      const clone = scene.add.sprite(cx, cy, 'player')
-        .setAlpha(0.7).setDepth(2).setScale(0.08);
+      const cloneTex = scene.textures.exists('player_down_idle') ? 'player_down_idle' : 'player';
+      const clone = scene.add.sprite(cx, cy, cloneTex)
+        .setAlpha(0.7).setDepth(2).setDisplaySize(60, 60);
 
       const t = scene.time.addEvent({
         delay: 200,

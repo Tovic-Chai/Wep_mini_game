@@ -3,13 +3,38 @@ import FireballWeapon  from './weapons/FireballWeapon.js';
 import LightningWeapon from './weapons/LightningWeapon.js';
 import OrbitWeapon     from './weapons/OrbitWeapon.js';
 
+// ── 플레이어 표시 크기 (이미지 실제 크기와 무관하게 고정) ──
+export const PLAYER_DISPLAY_SIZE = 60;
+
+// ── 4방향 애니메이션 프레임 (텍스처 키 배열) ──
+const ANIMATIONS = {
+  down:  ['player_down_idle', 'player_down_r1', 'player_down_r2',
+          'player_down_idle', 'player_down_l1', 'player_down_l2'],
+  up:    ['player_up_idle',   'player_up_r1',   'player_up_r2',
+          'player_up_idle',   'player_up_l1',   'player_up_l2'],
+  right: ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
+  left:  ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
+};
+
+const IDLE_TEXTURES = {
+  down:  'player_down_idle',
+  up:    'player_up_idle',
+  right: 'player_side_idle',
+  left:  'player_side_idle',
+};
+
 export default class Player {
   constructor(scene, x, y) {
     this.scene = scene;
 
-    this.sprite = scene.physics.add.sprite(x, y, 'player')
+    // 애니메이션 이미지가 로드됐으면 사용, 아니면 player1.png 폴백
+    const initTex = scene.textures.exists('player_down_idle')
+      ? 'player_down_idle'
+      : 'player';
+
+    this.sprite = scene.physics.add.sprite(x, y, initTex)
       .setDepth(2)
-      .setScale(0.08);
+      .setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
     this.sprite.setCollideWorldBounds(true);
 
     // ── 기본 스탯 ──
@@ -17,36 +42,42 @@ export default class Player {
     this.maxHp       = 100;
     this.attackPower = 10;
     this.speed       = 200;
-    this.attackRate  = 0.5;   // 초당 발사 간격 (초)
+    this.attackRate  = 0.5;
     this.attackTimer = 0;
-    this.bulletCount = 1;     // 다중 발사 수 (레벨업 카드로 증가)
+    this.bulletCount = 1;
 
-    // ── 총알 그룹 (physics group → group.create() 패턴 사용) ──
+    // ── 총알 그룹 ──
     this.bullets = scene.physics.add.group({
       maxSize: 120,
       runChildUpdate: false
     });
 
     // ── 레벨 / 경험치 ──
-    this.level    = 1;
-    this.exp      = 0;
+    this.level     = 1;
+    this.exp       = 0;
     this.expToNext = 20;
 
-    // ── 액티브 스킬 (보스 흡수) Q / E / R ──
-    this.skills       = { Q: null, E: null, R: null };
+    // ── 액티브 스킬 (Q / E / R) ──
+    this.skills         = { Q: null, E: null, R: null };
     this.skillCooldowns = { Q: 0, E: 0, R: 0 };
 
-    // 스킬 키 (Q, E, R)
     this.keyQ = scene.input.keyboard.addKey('Q');
     this.keyE = scene.input.keyboard.addKey('E');
     this.keyR = scene.input.keyboard.addKey('R');
 
-    // ── 패시브 무기 목록 ──
+    // ── 패시브 무기 ──
     this.passiveWeapons = [];
 
+    // ── 4방향 애니메이션 상태 ──
+    this.direction     = 'down';
+    this.frameIndex    = 0;
+    this.frameTimer    = 0;
+    this.frameInterval = 0.12; // 초 (약 8fps)
+
     // ── HUD: 체력바 ──
-    this.hpBarBg = scene.add.rectangle(x, y + 38, 42, 6, 0x000000).setDepth(5);
-    this.hpBar   = scene.add.rectangle(x, y + 38, 40, 4, 0x00ff66).setDepth(6);
+    const hpY = PLAYER_DISPLAY_SIZE / 2 + 8;
+    this.hpBarBg = scene.add.rectangle(x, y + hpY, 42, 6, 0x000000).setDepth(5);
+    this.hpBar   = scene.add.rectangle(x, y + hpY, 40, 4, 0x00ff66).setDepth(6);
 
     // ── HUD: 경험치바 (화면 고정) ──
     this.expBarBg = scene.add.rectangle(480, 42, 220, 10, 0x000000)
@@ -60,7 +91,7 @@ export default class Player {
       stroke: '#000', strokeThickness: 3
     }).setScrollFactor(0).setDepth(22);
 
-    // 무적 타이머 (적 접촉 데미지 쿨다운)
+    // 무적 타이머
     this.invincibleTimer = 0;
   }
 
@@ -75,25 +106,76 @@ export default class Player {
     this._updateCooldowns(dt);
     this._updatePassiveWeapons(dt);
     this._updateHUD();
-
-    // 무적 타이머 감소
     if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
   }
 
   // ────────────────────────────────────────────
-  //  이동
+  //  이동 + 4방향 애니메이션
   // ────────────────────────────────────────────
   _handleMovement(dt, cursors, keys) {
-    let vx = 0, vy = 0;
-    if (cursors.left.isDown  || keys.A.isDown) vx = -1;
-    if (cursors.right.isDown || keys.D.isDown) vx = 1;
-    if (cursors.up.isDown    || keys.W.isDown) vy = -1;
-    if (cursors.down.isDown  || keys.S.isDown) vy = 1;
+    let dx = 0, dy = 0;
+    if (cursors.left.isDown  || keys.A.isDown) dx -= 1;
+    if (cursors.right.isDown || keys.D.isDown) dx += 1;
+    if (cursors.up.isDown    || keys.W.isDown) dy -= 1;
+    if (cursors.down.isDown  || keys.S.isDown) dy += 1;
 
-    const slow = keys.SHIFT && keys.SHIFT.isDown;
-    const spd  = slow ? this.speed * 0.5 : this.speed;
-    const len  = Math.hypot(vx, vy) || 1;
-    this.sprite.setVelocity((vx / len) * spd, (vy / len) * spd);
+    const isMoving = dx !== 0 || dy !== 0;
+    const slow     = keys.SHIFT && keys.SHIFT.isDown;
+    const spd      = slow ? this.speed * 0.5 : this.speed;
+
+    if (isMoving) {
+      const len = Math.hypot(dx, dy);
+      this.sprite.setVelocity((dx / len) * spd, (dy / len) * spd);
+
+      // 방향 결정: 좌우 우선 (대각선 이동 시)
+      if      (dx > 0) this._changeDirection('right');
+      else if (dx < 0) this._changeDirection('left');
+      else if (dy < 0) this._changeDirection('up');
+      else             this._changeDirection('down');
+
+      this._animateStep(dt);
+    } else {
+      this.sprite.setVelocity(0, 0);
+      // 정지 → 현재 방향의 idle 프레임으로 리셋
+      this.frameIndex = 0;
+      this.frameTimer = 0;
+      this._applyTexture(IDLE_TEXTURES[this.direction]);
+    }
+  }
+
+  /** 방향이 바뀔 때 프레임 리셋 */
+  _changeDirection(newDir) {
+    if (this.direction === newDir) return;
+    this.direction  = newDir;
+    this.frameIndex = 0;
+    this.frameTimer = 0;
+    this._applyTexture(IDLE_TEXTURES[newDir]);
+  }
+
+  /** 이동 중 프레임 전진 */
+  _animateStep(dt) {
+    const frames = ANIMATIONS[this.direction];
+    this.frameTimer += dt;
+    if (this.frameTimer >= this.frameInterval) {
+      this.frameTimer = 0;
+      this.frameIndex = (this.frameIndex + 1) % frames.length;
+      this._applyTexture(frames[this.frameIndex]);
+    }
+  }
+
+  /**
+   * 텍스처 교체 + DisplaySize 유지 + flipX 적용
+   * setTexture() 호출 시 내부적으로 width/height 가 리셋되므로
+   * setDisplaySize 로 항상 일정한 표시 크기를 보장한다.
+   */
+  _applyTexture(key) {
+    const tex = this.scene.textures.exists(key) ? key : 'player';
+    if (this.sprite.texture.key !== tex) {
+      this.sprite.setTexture(tex)
+        .setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
+    }
+    // 왼쪽 이동 시 오른쪽 측면 이미지를 수평 반전
+    this.sprite.setFlipX(this.direction === 'left');
   }
 
   // ────────────────────────────────────────────
@@ -107,72 +189,49 @@ export default class Player {
     }
   }
 
-  /** 가장 가까운 적을 향해 bulletCount 발 자동 발사 */
   fireAuto() {
     const me = this.sprite;
+    let nearest = null, minDist = Infinity;
 
-    // 가장 가까운 적 탐색
-    let nearest = null;
-    let minDist = Infinity;
-
-    const checkTarget = (enemy) => {
-      if (!enemy.active) return;
-      const d = Phaser.Math.Distance.Between(me.x, me.y, enemy.x, enemy.y);
-      if (d < minDist) { minDist = d; nearest = enemy; }
+    const check = (e) => {
+      if (!e.active) return;
+      const d = Phaser.Math.Distance.Between(me.x, me.y, e.x, e.y);
+      if (d < minDist) { minDist = d; nearest = e; }
     };
-
-    this.scene.enemyManager.group.children.each(checkTarget);
-    this.scene.enemyManager.bossGroup.children.each(checkTarget);
+    this.scene.enemyManager.group.children.each(check);
+    this.scene.enemyManager.bossGroup.children.each(check);
 
     if (!nearest) return;
 
-    const baseAngle = Phaser.Math.Angle.Between(me.x, me.y, nearest.x, nearest.y);
-
-    // 다중 발사 spread 각도 (±5° per extra bullet)
+    const base   = Phaser.Math.Angle.Between(me.x, me.y, nearest.x, nearest.y);
     const spread = this._spreadAngles(this.bulletCount);
-    for (const offset of spread) {
-      this._spawnBullet(me.x, me.y, baseAngle + offset);
-    }
+    for (const off of spread) this._spawnBullet(me.x, me.y, base + off);
   }
 
   _spawnBullet(x, y, angle) {
-    // ★ group.create() 사용 — physics.add.image() + group.add() 패턴 제거
-    const bullet = this.bullets.create(x, y, 'bullet');
-    if (!bullet) return;
-
-    bullet.setActive(true).setVisible(true);
-    bullet.setDepth(10);
-    bullet.isPlayerBullet = true;
-    bullet.setScale(1.3);
-    bullet.rotation = angle;
-
-    const speed = 700;
-    bullet.body.setVelocity(
-      Math.cos(angle) * speed,
-      Math.sin(angle) * speed
-    );
+    const b = this.bullets.create(x, y, 'bullet');
+    if (!b) return;
+    b.setActive(true).setVisible(true).setDepth(10).setScale(1.3);
+    b.isPlayerBullet = true;
+    b.rotation = angle;
+    b.body.setVelocity(Math.cos(angle) * 700, Math.sin(angle) * 700);
   }
 
   _spreadAngles(count) {
     if (count === 1) return [0];
-    if (count === 2) return [-0.087, 0.087]; // ±5°
-    return [-0.174, 0, 0.174];               // ±10°
+    if (count === 2) return [-0.087, 0.087];
+    return [-0.174, 0, 0.174];
   }
 
-  // ────────────────────────────────────────────
-  //  총알 정리
-  // ────────────────────────────────────────────
   _cleanupBullets() {
-    const me = this.sprite;
+    const { x, y } = this.sprite;
     this.bullets.children.each(b => {
-      if (!b.active) return;
-      const d = Phaser.Math.Distance.Between(b.x, b.y, me.x, me.y);
-      if (d > 900) b.destroy();
+      if (b.active && Phaser.Math.Distance.Between(b.x, b.y, x, y) > 900) b.destroy();
     });
   }
 
   // ────────────────────────────────────────────
-  //  스킬 키 처리
+  //  스킬 / 쿨다운
   // ────────────────────────────────────────────
   _handleSkillKeys() {
     if (Phaser.Input.Keyboard.JustDown(this.keyQ)) this.useSkill('Q');
@@ -182,9 +241,8 @@ export default class Player {
 
   _updateCooldowns(dt) {
     for (const k of ['Q', 'E', 'R']) {
-      if (this.skillCooldowns[k] > 0) {
+      if (this.skillCooldowns[k] > 0)
         this.skillCooldowns[k] = Math.max(0, this.skillCooldowns[k] - dt);
-      }
     }
   }
 
@@ -195,17 +253,16 @@ export default class Player {
     for (const w of this.passiveWeapons) w.update(dt);
   }
 
-  /** 패시브 무기 추가 또는 레벨업 */
   addOrUpgradePassiveWeapon(type) {
     const existing = this.passiveWeapons.find(w => w.type === type);
     if (existing) {
       existing.levelUp();
     } else {
-      let weapon;
-      if (type === 'fireball')  weapon = new FireballWeapon(this.scene, this);
-      if (type === 'lightning') weapon = new LightningWeapon(this.scene, this);
-      if (type === 'orbit')     weapon = new OrbitWeapon(this.scene, this);
-      if (weapon) this.passiveWeapons.push(weapon);
+      let w;
+      if (type === 'fireball')  w = new FireballWeapon(this.scene, this);
+      if (type === 'lightning') w = new LightningWeapon(this.scene, this);
+      if (type === 'orbit')     w = new OrbitWeapon(this.scene, this);
+      if (w) this.passiveWeapons.push(w);
     }
   }
 
@@ -214,28 +271,21 @@ export default class Player {
   }
 
   // ────────────────────────────────────────────
-  //  HUD 갱신
+  //  HUD
   // ────────────────────────────────────────────
   _updateHUD() {
-    const me = this.sprite;
+    const { x, y } = this.sprite;
+    const hpY = y + PLAYER_DISPLAY_SIZE / 2 + 8;
 
-    // 체력바 위치
-    this.hpBarBg.setPosition(me.x, me.y + 38);
-    this.hpBar.setPosition(
-      me.x - (40 - 40 * (this.hp / this.maxHp)) / 2,
-      me.y + 38
-    );
+    this.hpBarBg.setPosition(x, hpY);
+    this.hpBar.setPosition(x - (40 - 40 * (this.hp / this.maxHp)) / 2, hpY);
     this.hpBar.width = 40 * (this.hp / this.maxHp);
 
-    // 체력 색상
     if (this.hp < this.maxHp * 0.3)      this.hpBar.fillColor = 0xff3333;
     else if (this.hp < this.maxHp * 0.6) this.hpBar.fillColor = 0xffcc00;
     else                                  this.hpBar.fillColor = 0x00ff66;
 
-    // 경험치바
     this.expBar.width = 220 * (this.exp / this.expToNext);
-
-    // 레벨 텍스트
     this.levelText.setText(`Lv.${this.level}`);
   }
 
@@ -243,11 +293,11 @@ export default class Player {
   //  데미지 / 경험치 / 레벨업
   // ────────────────────────────────────────────
   takeDamage(amount) {
-    if (this.invincibleTimer > 0) return; // 무적 중
+    if (this.invincibleTimer > 0) return;
     this.hp -= amount;
     if (this.hp < 0) this.hp = 0;
     this.scene.cameras.main.flash(160, 255, 0, 0);
-    this.invincibleTimer = 0.5; // 0.5초 무적
+    this.invincibleTimer = 0.5;
   }
 
   gainExp(amount) {
@@ -261,47 +311,33 @@ export default class Player {
   levelUp() {
     this.level++;
     this.expToNext = Math.floor(this.expToNext * 1.35);
-
     this.scene.showLevelUpCards();
     this.scene.cameras.main.flash(200, 100, 255, 100);
 
     const txt = this.scene.add.text(
-      this.sprite.x, this.sprite.y - 60,
+      this.sprite.x, this.sprite.y - 70,
       `LEVEL UP! ${this.level}`,
       { fontSize: '24px', color: '#44ff88', stroke: '#000', strokeThickness: 4 }
     ).setOrigin(0.5).setDepth(50);
 
     this.scene.tweens.add({
       targets: txt, y: txt.y - 40, alpha: 0,
-      duration: 1200,
-      onComplete: () => txt.destroy()
+      duration: 1200, onComplete: () => txt.destroy()
     });
   }
 
-  // ────────────────────────────────────────────
-  //  액티브 스킬 (보스 흡수)
-  // ────────────────────────────────────────────
   acquireSkill(skillData) {
-    // 빈 슬롯 Q → E → R 순서로 채움
     for (const k of ['Q', 'E', 'R']) {
-      if (!this.skills[k]) {
-        this.skills[k] = new Skill(this.scene, skillData);
-        return;
-      }
+      if (!this.skills[k]) { this.skills[k] = new Skill(this.scene, skillData); return; }
     }
-    // 모든 슬롯이 찼으면 Q를 덮어씀
     this.skills['Q'] = new Skill(this.scene, skillData);
   }
 
   useSkill(slotKey) {
     const skill = this.skills[slotKey];
-    if (!skill) return;
-    if (this.skillCooldowns[slotKey] > 0) return;
+    if (!skill || this.skillCooldowns[slotKey] > 0) return;
     skill.activate(this);
     this.skillCooldowns[slotKey] = skill.cooldown;
-    if (skill.uses !== undefined) {
-      skill.uses--;
-      if (skill.uses <= 0) this.skills[slotKey] = null;
-    }
+    if (skill.uses !== undefined && --skill.uses <= 0) this.skills[slotKey] = null;
   }
 }

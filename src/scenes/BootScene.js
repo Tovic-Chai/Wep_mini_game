@@ -2,7 +2,7 @@ export default class BootScene extends Phaser.Scene {
   constructor() { super({ key: 'BootScene' }); }
 
   preload() {
-    // 실제 폴더의 파일명에 정확히 맞춤
+    // ── 보스 이미지 ──
     this.load.image('player',            'assets/images/player1.png');
     this.load.image('boss_mini1',        'assets/images/mini_boss_1.png');
     this.load.image('boss_mini2',        'assets/images/mini_boss_2.png');
@@ -10,6 +10,24 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('boss_final_phase1', 'assets/images/boss_phase_1.png');
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
+
+    // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
+    // 아래 방향 (후면 = 카메라 향해 걷기)
+    this.load.image('player_down_idle', 'assets/images/후면_서있기.png');
+    this.load.image('player_down_r1',   'assets/images/후면_오른발앞_걷기.png');
+    this.load.image('player_down_r2',   'assets/images/후면_오른발앞_달리기.png');
+    this.load.image('player_down_l1',   'assets/images/후면_왼발앞_걷기.png');
+    this.load.image('player_down_l2',   'assets/images/후면_왼발앞_달리기.png');
+    // 위 방향 (정면 = 카메라 등지고 걷기)
+    this.load.image('player_up_idle',   'assets/images/정면_서있기.png');
+    this.load.image('player_up_r1',     'assets/images/정면_오른발_앞으로.png');
+    this.load.image('player_up_r2',     'assets/images/정면_오른발_많이_앞으로.png');
+    this.load.image('player_up_l1',     'assets/images/정면_왼발_앞으로.png');
+    this.load.image('player_up_l2',     'assets/images/정면_왼발_많이_앞으로.png');
+    // 좌우 방향 (측면, 왼쪽은 flipX로 처리)
+    this.load.image('player_side_idle', 'assets/images/오른쪽으로_걷기_서있는_상태.png');
+    this.load.image('player_side_r1',   'assets/images/오른쪽으로_걷기_작게.png');
+    this.load.image('player_side_r2',   'assets/images/오른쪽으로_걷기_크게.png');
 
     // 자산 로드 실패해도 게임이 죽지 않도록
     this.load.on('loaderror', (file) => {
