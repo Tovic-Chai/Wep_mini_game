@@ -8,10 +8,8 @@ export const PLAYER_DISPLAY_SIZE = 60;
 
 // ── 4방향 애니메이션 프레임 (텍스처 키 배열) ──
 const ANIMATIONS = {
-  down:  ['player_down_idle', 'player_down_r1', 'player_down_r2',
-          'player_down_idle', 'player_down_l1', 'player_down_l2'],
-  up:    ['player_up_idle',   'player_up_r1',   'player_up_r2',
-          'player_up_idle',   'player_up_l1',   'player_up_l2'],
+  down:  ['player_down_idle', 'player_down_r1', 'player_down_r2', 'player_down_r1'],
+  up:    ['player_up_idle',   'player_up_r1',   'player_up_r2',   'player_up_r1'],
   right: ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
   left:  ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
 };
