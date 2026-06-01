@@ -1,7 +1,7 @@
-import Player       from '../entities/Player.js';
+import Player from '../entities/Player.js';
 import EnemyManager from '../entities/EnemyManager.js';
-import Boss         from '../entities/Boss.js';
-import UI           from '../ui/UI.js';
+import Boss from '../entities/Boss.js';
+import UI from '../ui/UI.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
@@ -14,33 +14,33 @@ export default class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
 
     // ── 배경 (시차 스크롤) ──
-    this.bgFar  = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
+    this.bgFar = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
       .setScrollFactor(0).setDepth(-3);
-    this.bgMid  = this.add.tileSprite(480, 320, 960, 640, 'bg_space_mid')
+    this.bgMid = this.add.tileSprite(480, 320, 960, 640, 'bg_space_mid')
       .setScrollFactor(0).setDepth(-2);
     this.bgNear = this.add.tileSprite(480, 320, 960, 640, 'bg_space_near')
       .setScrollFactor(0).setDepth(-1);
 
     // ── 주요 엔티티 ──
-    this.player       = new Player(this, 0, 0);
+    this.player = new Player(this, 0, 0);
     this.enemyManager = new EnemyManager(this);
-    this.ui           = new UI(this, this.player);
+    this.ui = new UI(this, this.player);
 
     // ── 카메라 ──
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     this.cameras.main.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
 
     // ── 타이밍 / 상태 ──
-    this.gameTime          = 0;
+    this.gameTime = 0;
     this.spawnedMiniBosses = 0;
-    this.boss              = null;
-    this.isLeveling        = false;
-    this.isGameOver        = false;
-    this.lastEnemyHitTime  = -1;
+    this.boss = null;
+    this.isLeveling = false;
+    this.isGameOver = false;
+    this.lastEnemyHitTime = -1;
 
     // ── 입력 ──
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys    = this.input.keyboard.addKeys('W,A,S,D,SHIFT,SPACE');
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,SHIFT,SPACE');
 
     // ── 적군 시작 ──
     this.enemyManager.start();
@@ -161,10 +161,10 @@ export default class GameScene extends Phaser.Scene {
 
     // 배경 시차
     const cam = this.cameras.main;
-    this.bgFar.tilePositionX  = cam.scrollX * 0.3;
-    this.bgFar.tilePositionY  = cam.scrollY * 0.3;
-    this.bgMid.tilePositionX  = cam.scrollX * 0.6;
-    this.bgMid.tilePositionY  = cam.scrollY * 0.6;
+    this.bgFar.tilePositionX = cam.scrollX * 0.3;
+    this.bgFar.tilePositionY = cam.scrollY * 0.3;
+    this.bgMid.tilePositionX = cam.scrollX * 0.6;
+    this.bgMid.tilePositionY = cam.scrollY * 0.6;
     this.bgNear.tilePositionX = cam.scrollX * 1.0;
     this.bgNear.tilePositionY = cam.scrollY * 1.0;
 
@@ -175,9 +175,9 @@ export default class GameScene extends Phaser.Scene {
     // ── 보스 스폰 타임라인 (스펙 기준) ──
     // 2:00 미니보스 1 → Q 스킬 획득
     // 4:00 미니보스 2 → E 스킬 획득
-    // 6:00 미니보스 3 → R 스킬 획득
+    // 6:00 미니보스 3 → C 스킬 획득
     // 8:00 메인보스
-    if (this.spawnedMiniBosses < 1 && this.gameTime >= 120) this.spawnMiniBoss(1);
+    if (this.spawnedMiniBosses < 1 && this.gameTime >= 10) this.spawnMiniBoss(1);
     if (this.spawnedMiniBosses < 2 && this.gameTime >= 240) this.spawnMiniBoss(2);
     if (this.spawnedMiniBosses < 3 && this.gameTime >= 360) this.spawnMiniBoss(3);
     if (!this.boss && this.gameTime >= 480) this.spawnMainBoss();
@@ -268,7 +268,7 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(36);
 
     btn.on('pointerover', () => btn.setFillStyle(0x0077dd));
-    btn.on('pointerout',  () => btn.setFillStyle(0x0055aa));
+    btn.on('pointerout', () => btn.setFillStyle(0x0055aa));
     btn.on('pointerdown', () => {
       // 패시브 무기 시각 오브젝트 정리
       if (this.player && this.player.passiveWeapons) {
@@ -312,110 +312,603 @@ export default class GameScene extends Phaser.Scene {
     const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.72)
       .setDepth(100).setScrollFactor(0);
 
-    // 타이틀 (cardObjects에 추가해 선택 후 삭제)
     const titleText = this.add.text(W / 2, 60, '강화 선택', {
       fontSize: '28px', fontStyle: 'bold', color: '#aaddff',
       stroke: '#000', strokeThickness: 4
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(130);
+
     const cardObjects = [titleText];
 
-    // ── 카드 풀 생성 ──
-    const pool   = this._buildCardPool();
+    const safeDestroy = (obj) => {
+      if (!obj || !obj.destroy) return;
+      try { obj.destroy(); } catch (e) { }
+    };
+
+    const pool = this._buildCardPool();
     const picked = this._pickCards(pool, 3);
 
     const rarities = [
-      { name: '노말',   chance: 55,   color: 0xffffff },
-      { name: '레어',   chance: 27.5, color: 0x3399ff },
-      { name: '에픽',   chance: 12.5, color: 0xaa44ff },
-      { name: '레전드', chance: 5,    color: 0xffaa00 }
+      { name: '노말', chance: 55, color: 0xffffff },
+      { name: '레어', chance: 27.5, color: 0x3399ff },
+      { name: '에픽', chance: 12.5, color: 0xaa44ff },
+      { name: '레전드', chance: 5, color: 0xffaa00 }
     ];
 
+    // ── 부드러운 후광 텍스처 생성 ──
+    const makeSoftHaloTexture = (key, color, w = 520, h = 620) => {
+      if (this.textures.exists(key)) return;
+
+      const canvas = this.textures.createCanvas(key, w, h);
+      const ctx = canvas.getContext();
+
+      const cx = w / 2;
+      const cy = h / 2;
+
+      const gradient = ctx.createRadialGradient(
+        cx, cy,
+        40,
+        cx, cy,
+        Math.max(w, h) * 0.42
+      );
+
+      const hex = '#' + color.toString(16).padStart(6, '0');
+
+      gradient.addColorStop(0.00, hex + '55');
+      gradient.addColorStop(0.35, hex + '30');
+      gradient.addColorStop(0.65, hex + '14');
+      gradient.addColorStop(1.00, hex + '00');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      canvas.refresh();
+    };
+
+    makeSoftHaloTexture('soft_halo_normal', 0xb8c4d6);
+    makeSoftHaloTexture('soft_halo_rare', 0x3399ff);
+    makeSoftHaloTexture('soft_halo_epic', 0xaa44ff);
+    makeSoftHaloTexture('soft_halo_legend', 0xffdd44);
+
     picked.forEach((cardDef, i) => {
-      const rarity = this.rollRarity(rarities);
-      const x      = 240 + i * 240;
+      let rarity = this.rollRarity(rarities);
+
+      // 패시브 무기 카드 등급 고정
+      // 획득/Lv2 = 레어, Lv3/Lv4 = 에픽, Lv5 = 레전드
+      if (
+        cardDef.includes('fireball') ||
+        cardDef.includes('lightning') ||
+        cardDef.includes('orbit')
+      ) {
+        let targetLevel = 1;
+
+        const weaponType = cardDef.split('_')[0];
+        const weapon = this.player.getPassiveWeapon(weaponType);
+
+        if (weapon) targetLevel = weapon.level + 1;
+
+        if (targetLevel <= 2) {
+          rarity = { name: '레어', color: 0x3399ff };
+        } else if (targetLevel <= 4) {
+          rarity = { name: '에픽', color: 0xaa44ff };
+        } else {
+          rarity = { name: '레전드', color: 0xffaa00 };
+        }
+      }
+
+      // 다중발사는 항상 레어
+      if (cardDef === 'multishot') {
+        rarity = { name: '레어', color: 0x3399ff };
+      }
+
+      const cardXs = [180, 480, 780];
+      const x = cardXs[i];
 
       const { label, applyFn, iconColor } = this._resolveCard(cardDef, rarity);
 
-      // 배경색
-      const bgColorMap = { 노말: 0x1a1a2e, 레어: 0x1a2a44, 에픽: 0x2a1a44, 레전드: 0x443300 };
+      const bgColorMap = {
+        노말: 0x202033,
+        레어: 0x182f4f,
+        에픽: 0x2b1d4a,
+        레전드: 0x4a3600
+      };
+
       const bgColor = bgColorMap[rarity.name] || 0x1a1a2e;
 
-      // ── Glow 레이어 ──
-      const glows = [
-        { w: 420, h: 510, a: 0.015 }, { w: 360, h: 450, a: 0.025 },
-        { w: 320, h: 410, a: 0.04  }, { w: 280, h: 370, a: 0.06  },
-        { w: 245, h: 335, a: 0.09  }, { w: 220, h: 310, a: 0.13  }
-      ].map(({ w, h, a }) =>
-        this.add.rectangle(x, 330, w, h, rarity.color, a)
-          .setDepth(96).setScrollFactor(0).setAlpha(0).setScale(0.7)
-      );
+      // 오버레이(depth 100)보다 높고 카드보다 낮은 글로우 레이어
+      const glowColor =
+        rarity.name === '노말' ? 0x7f8ca8 : rarity.color;
 
-      const shadow = this.add.rectangle(x + 10, 340, 200, 290, 0x000000, 0.35)
-        .setDepth(102).setScrollFactor(0).setAlpha(0);
+      const glowAlphaMult =
+        rarity.name === '노말' ? 0.45 : 1;
+
+      const glowRadius = {
+        노말: 180,
+        레어: 220,
+        에픽: 260,
+        레전드: 320
+      }[rarity.name];
+
+      const glow = this.add.graphics()
+        .setDepth(102)
+        .setScrollFactor(0)
+        .setAlpha(0);
+
+      for (let r = glowRadius; r > 0; r -= 2) {
+
+        const alpha =
+          Math.pow(r / glowRadius, 2) *
+          0.004 *
+          glowAlphaMult;
+
+        glow.fillStyle(glowColor, alpha);
+        glow.fillCircle(x, 330, r);
+      }
+
+      glow.setBlendMode(Phaser.BlendModes.ADD);
+
+      const glows = [glow];
+
+      // ─────────────────────────────
+      // 카드 뒤 부드러운 후광
+      // ─────────────────────────────
+      const haloColor =
+        rarity.name === '노말' ? 0xb8c4d6 : rarity.color;
+
+      const haloKeyMap = {
+        노말: 'soft_halo_normal',
+        레어: 'soft_halo_rare',
+        에픽: 'soft_halo_epic',
+        레전드: 'soft_halo_legend'
+      };
+
+      const halo = this.add.image(x, 330, haloKeyMap[rarity.name])
+        .setDepth(103)
+        .setScrollFactor(0)
+        .setAlpha(0)
+        .setScale(rarity.name === '노말' ? 0.85 : 0.95);
+
+      const haloLine = this.add.rectangle(x, 330, 214, 304)
+        .setStrokeStyle(
+          rarity.name === '노말' ? 2 : 3,
+          haloColor,
+          rarity.name === '노말' ? 0.22 : 0.45
+        )
+        .setDepth(104)
+        .setScrollFactor(0)
+        .setAlpha(0);
+
+      cardObjects.push(halo, haloLine);
+
+      cardObjects.push(halo, haloLine);
+
+      const shadow = this.add.rectangle(
+        x + 4,
+        334,
+        160,
+        240,
+        0x000000,
+        0.18
+      )
+        .setDepth(102)
+        .setScrollFactor(0)
+        .setAlpha(0);
 
       const card = this.add.rectangle(x, 330, 200, 290, bgColor)
-        .setStrokeStyle(3, rarity.color, 0.45)
-        .setDepth(103).setScrollFactor(0).setInteractive({ useHandCursor: true })
+        .setStrokeStyle(rarity.name === '레전드' ? 5 : 3, rarity.color, rarity.name === '레전드' ? 1 : 0.55)
+        .setDepth(108).setScrollFactor(0).setInteractive({ useHandCursor: true })
         .setAlpha(0).setScale(0.7);
 
-      // ── 아이콘 (색상 원) ──
-      const iconCircle = this.add.circle(x, 255, 28, iconColor, 0.9)
-        .setDepth(105).setScrollFactor(0).setAlpha(0);
+      const iconCircle = this.add.circle(x, 255, rarity.name === '레전드' ? 34 : 28, iconColor, 0.9)
+        .setDepth(112).setScrollFactor(0).setAlpha(0);
 
-      // ── 등급 텍스트 ──
       const rarityText = this.add.text(x, 295, rarity.name, {
-        fontSize: '12px', color: '#' + rarity.color.toString(16).padStart(6, '0'),
-        stroke: '#000', strokeThickness: 2, fontStyle: 'bold'
-      }).setOrigin(0.5).setDepth(105).setScrollFactor(0).setAlpha(0);
+        fontSize: '12px',
+        color: '#' + rarity.color.toString(16).padStart(6, '0'),
+        stroke: '#000',
+        strokeThickness: 2,
+        fontStyle: 'bold'
+      }).setOrigin(0.5).setDepth(113).setScrollFactor(0).setAlpha(0);
 
-      // ── 메인 레이블 ──
       const statText = this.add.text(x, 350, label, {
         fontFamily: 'sans-serif',
-        fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
-        stroke: '#000000', strokeThickness: 5,
-        align: 'center', wordWrap: { width: 180 },
+        fontSize: '22px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 5,
+        align: 'center',
+        wordWrap: { width: 180 },
         padding: { left: 8, right: 8, top: 4, bottom: 4 },
-      }).setOrigin(0.5).setResolution(2).setDepth(105).setScrollFactor(0).setAlpha(0);
+      }).setOrigin(0.5).setResolution(2).setDepth(114).setScrollFactor(0).setAlpha(0);
 
-      // ── 등장 애니메이션 ──
-      const allParts = [...glows, card, shadow, iconCircle, rarityText, statText];
+      const allParts = [...glows, halo, haloLine, shadow, card, iconCircle, rarityText, statText];
+
+      // ─────────────────────────────
+      // 카드 등장 등급 연출
+      // ─────────────────────────────
+
+      if (rarity.name === '레어') {
+        const flash = this.add.rectangle(x, 330, 380, 520, 0x3399ff, 0.5)
+          .setDepth(101)
+          .setScrollFactor(0);
+
+        cardObjects.push(flash);
+
+        this.tweens.add({
+          targets: flash,
+          alpha: 0,
+          scaleX: 0,
+          duration: 1500,
+          ease: 'Cubic.Out',
+          onComplete: () => safeDestroy(flash)
+        });
+
+        this.tweens.add({
+          targets: glows,
+          alpha: { from: 0.2, to: 0.45 },
+          duration: 900,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.InOut'
+        });
+      }
+
+      if (rarity.name === '에픽') {
+        // 에픽 보라 기둥
+        const epicBeam = this.add.rectangle(x, 330, 180, 600, 0xaa44ff, 0.38)
+          .setDepth(106)
+          .setScrollFactor(0);
+
+        cardObjects.push(epicBeam);
+
+        this.tweens.add({
+          targets: epicBeam,
+          scaleX: 2.2,
+          alpha: 0,
+          duration: 1600,
+          ease: 'Expo.Out',
+          onComplete: () => safeDestroy(epicBeam)
+        });
+
+        // 보라 화면 플래시 - 레전드보다 약하게
+        const epicFlash = this.add.rectangle(480, 320, 960, 640, 0xaa44ff, 0.12)
+          .setDepth(101)
+          .setScrollFactor(0);
+
+        cardObjects.push(epicFlash);
+
+        this.tweens.add({
+          targets: epicFlash,
+          alpha: 0,
+          duration: 900,
+          ease: 'Cubic.Out',
+          onComplete: () => safeDestroy(epicFlash)
+        });
+
+        // 카드 뒤 보라 후광
+        const aura = this.add.circle(x, 330, 220, 0xaa44ff, 0.2)
+          .setDepth(105)
+          .setScrollFactor(0);
+
+        cardObjects.push(aura);
+
+        this.tweens.add({
+          targets: aura,
+          alpha: { from: 0.1, to: 0.28 },
+          scale: { from: 0.9, to: 1.3 },
+          duration: 1300,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.InOut'
+        });
+
+        // 카드 위 보라 폭발 입자
+        const epicBurst = this.add.particles(x, 330, 'particle_star', {
+          speed: { min: 120, max: 280 },
+          scale: { start: 1.4, end: 0 },
+          tint: 0xaa44ff,
+          lifespan: 1100,
+          quantity: 55,
+          emitting: false,
+          blendMode: 'ADD'
+        }).setDepth(125).setScrollFactor(0);
+
+        epicBurst.explode(55);
+        cardObjects.push(epicBurst);
+        this.time.delayedCall(1200, () => safeDestroy(epicBurst));
+
+        // 카드 위에서 계속 떠오르는 보라 입자
+        const epicParticles = this.add.particles(x, 330, 'particle_star', {
+          emitZone: {
+            type: 'random',
+            source: new Phaser.Geom.Rectangle(-85, -120, 170, 240)
+          },
+
+          speedY: { min: -35, max: -12 },
+          speedX: { min: -15, max: 15 },
+
+          scale: {
+            start: 0.22,
+            end: 0
+          },
+
+          tint: 0xcc88ff,
+
+          lifespan: 1200,
+
+          frequency: 80,
+
+          quantity: 1,
+
+          blendMode: 'ADD'
+        })
+          .setDepth(126)
+          .setScrollFactor(0);
+
+        cardObjects.push(epicParticles);
+
+        // 회전 룬
+        const rune = this.add.circle(x, 330, 120)
+          .setStrokeStyle(4, 0xcc88ff, 0.8)
+          .setDepth(104)
+          .setScrollFactor(0);
+
+        cardObjects.push(rune);
+
+        this.tweens.add({
+          targets: rune,
+          angle: 360,
+          duration: 6000,
+          repeat: -1
+        });
+
+        this.tweens.add({
+          targets: rune,
+          alpha: { from: 0.35, to: 0.9 },
+          duration: 1200,
+          yoyo: true,
+          repeat: -1
+        });
+      }
+
+      if (rarity.name === '레전드') {
+        // 화면 플래시
+        const screenFlash = this.add.rectangle(480, 320, 960, 640, 0xffdd44, 0.32)
+          .setDepth(101)
+          .setScrollFactor(0);
+
+        cardObjects.push(screenFlash);
+
+        this.tweens.add({
+          targets: screenFlash,
+          alpha: 0,
+          duration: 1300,
+          ease: 'Expo.Out',
+          onComplete: () => safeDestroy(screenFlash)
+        });
+
+        // 카드 뒤 황금 후광
+        const halo1 = this.add.circle(x, 330, 220, 0xffdd44, 0.2)
+          .setDepth(102)
+          .setScrollFactor(0);
+
+        const halo2 = this.add.circle(x, 330, 150, 0xffee88, 0.24)
+          .setDepth(103)
+          .setScrollFactor(0);
+
+        cardObjects.push(halo1, halo2);
+
+        this.tweens.add({
+          targets: [halo1, halo2],
+          alpha: { from: 0.1, to: 0.28 },
+          scale: { from: 0.9, to: 1.35 },
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.InOut'
+        });
+
+        // 회전 황금 링
+        const ring = this.add.circle(x, 330, 128)
+          .setStrokeStyle(6, 0xffdd44, 0.9)
+          .setDepth(104)
+          .setScrollFactor(0);
+
+        cardObjects.push(ring);
+
+        this.tweens.add({
+          targets: ring,
+          angle: 360,
+          duration: 5000,
+          repeat: -1
+        });
+
+        // 황금 빛기둥
+        const beam = this.add.rectangle(x, 330, 220, 720, 0xffdd44, 0.35)
+          .setDepth(101)
+          .setScrollFactor(0);
+
+        cardObjects.push(beam);
+
+        this.tweens.add({
+          targets: beam,
+          scaleX: 2.6,
+          alpha: 0,
+          duration: 2000,
+          ease: 'Expo.Out',
+          onComplete: () => safeDestroy(beam)
+        });
+
+        // 황금 폭발
+        const legendaryBurst = this.add.particles(x, 330, 'particle_star', {
+          speed: { min: 120, max: 300 },
+          scale: { start: 0.9, end: 0 },
+          tint: 0xfff2aa,
+          lifespan: 1400,
+          quantity: 80,
+          emitting: false,
+          blendMode: 'ADD'
+        })
+          .setDepth(140)
+          .setScrollFactor(0);
+
+        legendaryBurst.explode(90);
+        cardObjects.push(legendaryBurst);
+        this.time.delayedCall(1600, () => safeDestroy(legendaryBurst));
+
+        // 카드 아래에서 올라오는 지속 황금 입자
+        const goldParticles = this.add.particles(x, 330, 'particle_star', {
+          emitZone: {
+            type: 'random',
+            source: new Phaser.Geom.Rectangle(-90, -130, 180, 260)
+          },
+
+          speedY: { min: -40, max: -15 },
+          speedX: { min: -20, max: 20 },
+
+          scale: {
+            start: 0.35,
+            end: 0
+          },
+
+          tint: 0xfff2aa,
+
+          lifespan: 1400,
+
+          frequency: 55,
+
+          quantity: 1,
+
+          blendMode: 'ADD'
+        })
+          .setDepth(130)
+          .setScrollFactor(0);
+
+        cardObjects.push(goldParticles);
+      }
+
+      // 카드 3장 동시 등장
       this.tweens.add({
-        targets: allParts, alpha: 1,
-        duration: 250, delay: i * 120
+        targets: allParts,
+        alpha: 1,
+        duration: 300
       });
+
       this.tweens.add({
         targets: [...glows, card],
-        scaleX: 1, scaleY: 1,
-        duration: 320, ease: 'Back.Out'
+        scaleX: 1,
+        scaleY: 1,
+        duration: rarity.name === '레전드' ? 700 : 500,
+        ease: rarity.name === '레전드' ? 'Elastic.Out' : 'Back.Out'
       });
 
-      // Hover
       card.on('pointerover', () => {
-        card.setScale(1.05);
-        glows.forEach((g, idx) => g.setScale(1.06 + idx * 0.02));
-      });
-      card.on('pointerout', () => {
-        card.setScale(1);
-        glows.forEach(g => g.setScale(1));
+        this.tweens.add({
+          targets: card,
+          scaleX: 1.035,
+          scaleY: 1.035,
+          duration: 220,
+          ease: 'Sine.Out'
+        });
+
+        this.tweens.add({
+          targets: glows,
+          scaleX: 1.04,
+          scaleY: 1.04,
+          alpha: rarity.name === '노말' ? 0.16 : 0.35,
+          duration: 220,
+          ease: 'Sine.Out'
+        });
+
+        this.tweens.add({
+          targets: [halo, haloLine],
+          scaleX: 1.04,
+          scaleY: 1.04,
+          alpha: rarity.name === '노말' ? 0.7 : 0.9,
+          duration: 260,
+          ease: 'Sine.Out'
+        });
       });
 
-      // 선택
+      card.on('pointerout', () => {
+        this.tweens.add({
+          targets: card,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 240,
+          ease: 'Sine.InOut'
+        });
+
+        this.tweens.add({
+          targets: glows,
+          scaleX: 1,
+          scaleY: 1,
+          alpha: rarity.name === '노말' ? 0.08 : 0.18,
+          duration: 240,
+          ease: 'Sine.InOut'
+        });
+
+        this.tweens.add({
+          targets: [halo, haloLine],
+          scaleX: 1,
+          scaleY: 1,
+          alpha: 1,
+          duration: 260,
+          ease: 'Sine.InOut'
+        });
+      });
+
       card.on('pointerdown', () => {
+        // 선택 순간 폭발
+        const selectTint =
+          rarity.name === '레전드' ? 0xfff2aa :
+            rarity.name === '에픽' ? 0xaa44ff :
+              rarity.name === '레어' ? 0x3399ff :
+                0xffffff;
+
+        const selectBurst = this.add.particles(x, 330, 'particle_star', {
+          speed: { min: 90, max: rarity.name === '레전드' ? 320 : 240 },
+          scale: {
+            start: rarity.name === '레전드' ? 0.7 :
+              rarity.name === '에픽' ? 0.45 : 0.35,
+            end: 0
+          },
+          tint: selectTint,
+          lifespan: rarity.name === '레전드' ? 900 : 700,
+          quantity: rarity.name === '레전드' ? 70 : rarity.name === '에픽' ? 45 : 25,
+          emitting: false,
+          blendMode: 'ADD'
+        })
+          .setDepth(150)
+          .setScrollFactor(0);
+
+        selectBurst.explode(
+          rarity.name === '레전드' ? 70 :
+            rarity.name === '에픽' ? 45 :
+              25
+        );
+
+
+        this.time.delayedCall(900, () => safeDestroy(selectBurst));
+
         applyFn();
-        overlay.destroy();
-        cardObjects.forEach(obj => { if (obj && obj.active) obj.destroy(); });
+
+        safeDestroy(overlay);
+        cardObjects.forEach(safeDestroy);
+
         this.physics.resume();
         this.isLeveling = false;
       });
 
-      cardObjects.push(...allParts, shadow);
+      cardObjects.push(...allParts);
     });
   }
+
 
   // ── 카드 풀 빌더 ──
   _buildCardPool() {
     const pool = [];
-    const p    = this.player;
+    const p = this.player;
 
     // 기본 능력치 항상 포함
     pool.push('attack', 'hp', 'movespeed', 'attackspeed');
@@ -450,7 +943,7 @@ export default class GameScene extends Phaser.Scene {
 
     switch (cardDef) {
       case 'attack': {
-        const vals = { 노말: [5,10], 레어: [8,12], 에픽: [12,15], 레전드: [17,17] };
+        const vals = { 노말: [5, 10], 레어: [8, 12], 에픽: [12, 15], 레전드: [17, 17] };
         const [lo, hi] = vals[rarity.name] || [5, 10];
         const v = Phaser.Math.Between(lo, hi);
         return {
@@ -460,7 +953,7 @@ export default class GameScene extends Phaser.Scene {
         };
       }
       case 'hp': {
-        const vals = { 노말: [10,15], 레어: [15,20], 에픽: [20,25], 레전드: [30,30] };
+        const vals = { 노말: [10, 15], 레어: [15, 20], 에픽: [20, 25], 레전드: [30, 30] };
         const [lo, hi] = vals[rarity.name] || [10, 15];
         const v = Phaser.Math.Between(lo, hi);
         return {
@@ -478,11 +971,11 @@ export default class GameScene extends Phaser.Scene {
         };
       }
       case 'attackspeed': {
-        const vals = { 노말: [0.02,0.05], 레어: [0.04,0.07], 에픽: [0.07,0.10], 레전드: [0.12,0.12] };
+        const vals = { 노말: [0.02, 0.05], 레어: [0.04, 0.07], 에픽: [0.07, 0.10], 레전드: [0.12, 0.12] };
         const [lo, hi] = vals[rarity.name] || [0.02, 0.05];
         const v = Phaser.Math.FloatBetween(lo, hi);
         return {
-          label: `⚡ 공속\n${(v*100).toFixed(0)}%↑`,
+          label: `⚡ 공속\n${(v * 100).toFixed(0)}%↑`,
           iconColor: 0xffdd00,
           applyFn: () => {
             p.attackRate *= (1 - v);
@@ -492,7 +985,7 @@ export default class GameScene extends Phaser.Scene {
       }
       case 'multishot': {
         return {
-          label: `🔫 다중발사\n(${p.bulletCount}→${p.bulletCount+1}발)`,
+          label: `🔫 다중발사\n(${p.bulletCount}→${p.bulletCount + 1}발)`,
           iconColor: 0x66ccff,
           applyFn: () => { p.bulletCount = Math.min(p.bulletCount + 1, 3); }
         };
@@ -508,7 +1001,7 @@ export default class GameScene extends Phaser.Scene {
         const w = p.getPassiveWeapon('fireball');
         const lv = w ? w.level : 1;
         return {
-          label: `🔥 파이어볼\nLv${lv}→${lv+1}`,
+          label: `🔥 파이어볼\nLv${lv}→${lv + 1}`,
           iconColor: 0xff8800,
           applyFn: () => { p.addOrUpgradePassiveWeapon('fireball'); }
         };
@@ -524,7 +1017,7 @@ export default class GameScene extends Phaser.Scene {
         const w = p.getPassiveWeapon('lightning');
         const lv = w ? w.level : 1;
         return {
-          label: `⚡ 번개\nLv${lv}→${lv+1}`,
+          label: `⚡ 번개\nLv${lv}→${lv + 1}`,
           iconColor: 0x88ccff,
           applyFn: () => { p.addOrUpgradePassiveWeapon('lightning'); }
         };
@@ -540,7 +1033,7 @@ export default class GameScene extends Phaser.Scene {
         const w = p.getPassiveWeapon('orbit');
         const lv = w ? w.level : 1;
         return {
-          label: `🌀 회전 오브\nLv${lv}→${lv+1}`,
+          label: `🌀 회전 오브\nLv${lv}→${lv + 1}`,
           iconColor: 0x4488ff,
           applyFn: () => { p.addOrUpgradePassiveWeapon('orbit'); }
         };
@@ -549,7 +1042,7 @@ export default class GameScene extends Phaser.Scene {
         return {
           label: '강화',
           iconColor: 0xffffff,
-          applyFn: () => {}
+          applyFn: () => { }
         };
     }
   }

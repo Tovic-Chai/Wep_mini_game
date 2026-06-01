@@ -1,6 +1,6 @@
 export default class UI {
   constructor(scene, player) {
-    this.scene  = scene;
+    this.scene = scene;
     this.player = player;
     this.create();
   }
@@ -20,19 +20,19 @@ export default class UI {
       stroke: '#000', strokeThickness: 3
     }).setOrigin(0.5, 0).setDepth(20).setScrollFactor(0);
 
-    // ── 스킬 슬롯 (Q / E / R) — 하단 ──
+    // ── 스킬 슬롯 (Q / E / C) — 하단 ──
     this.skillSlots = {
-      Q: this._makeSkillSlot(s, 16,  596, 'Q'),
-      E: this._makeSkillSlot(s, 130, 596, 'E'),
-      R: this._makeSkillSlot(s, 244, 596, 'R')
+      Q: this._makeSkillSlot(s, 16, 596, 'Q'),
+      E: this._makeSkillSlot(s, 180, 596, 'E'),
+      C: this._makeSkillSlot(s, 344, 596, 'C')
     };
 
     // ── 패시브 무기 HUD (우측 하단) ──
     this.passiveIcons = {};
     const passiveTypes = [
-      { key: 'fireball',  label: '🔥', color: '#ff6600', x: 920 },
+      { key: 'fireball', label: '🔥', color: '#ff6600', x: 920 },
       { key: 'lightning', label: '⚡', color: '#aaddff', x: 895 },
-      { key: 'orbit',     label: '🌀', color: '#00aaff', x: 870 }
+      { key: 'orbit', label: '🌀', color: '#00aaff', x: 870 }
     ];
     passiveTypes.forEach(({ key, label, color, x }, i) => {
       const icon = s.add.text(920 - i * 34, 612, label, {
@@ -55,12 +55,16 @@ export default class UI {
   }
 
   _makeSkillSlot(s, x, y, key) {
-    const bg = s.add.rectangle(x + 42, y + 14, 100, 28, 0x112233, 0.85)
+    const bg = s.add.rectangle(x + 70, y + 12, 140, 24, 0x112233, 0.85)
       .setScrollFactor(0).setDepth(19);
-    const text = s.add.text(x, y, `${key}: -`, {
-      fontSize: '14px', color: '#44cc88',
-      stroke: '#000', strokeThickness: 2
+
+    const text = s.add.text(x + 6, y + 2, `${key}: -`, {
+      fontSize: '13px',
+      color: '#44cc88',
+      stroke: '#000',
+      strokeThickness: 2
     }).setScrollFactor(0).setDepth(20);
+
     return { bg, text };
   }
 
@@ -83,18 +87,18 @@ export default class UI {
     this.timerText.setColor(remain <= 60 ? '#ff4444' : '#ffffff');
 
     // 스킬 슬롯
-    for (const k of ['Q', 'E', 'R']) {
+    for (const k of ['Q', 'E', 'C']) {
       const skill = p.skills[k];
-      const cd    = p.skillCooldowns[k];
+      const cd = p.skillCooldowns[k];
       let text;
       if (!skill) {
         text = `${k}: -`;
         this.skillSlots[k].text.setColor('#556677');
       } else if (cd > 0) {
-        text = `${k}: ${skill.name} [${cd.toFixed(1)}s]`;
+        text = `${k}: [${cd.toFixed(1)}s]`;
         this.skillSlots[k].text.setColor('#aa8844');
       } else {
-        text = `${k}: ${skill.name} ✓`;
+        text = `${k}: ${skill.name}`;
         this.skillSlots[k].text.setColor('#44ff88');
       }
       this.skillSlots[k].text.setText(text);

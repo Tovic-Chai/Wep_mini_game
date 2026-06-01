@@ -2,7 +2,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
   constructor(scene, x, y, kind = 'mini1') {
     super();
     this.scene = scene;
-    this.kind  = kind;
+    this.kind = kind;
 
     const keyMap = {
       mini1: 'boss_mini1',
@@ -19,19 +19,19 @@ export default class Boss extends Phaser.Events.EventEmitter {
       .setScale(scaleMap[kind] || 0.3);
     this.sprite.parentRef = this;
 
-    this.alive       = true;
+    this.alive = true;
     this.attackTimer = 0;
 
     // 보스별 스탯 및 획득 스킬
     const configs = {
-      mini1: { hp: 1500, skill: { id: 'slow',     name: '시간 슬로우', duration: 5,  cooldown: 45, effect: 'timeSlow'   }},
-      mini2: { hp: 2500, skill: { id: 'blackhole', name: '블랙홀',      duration: 3,  cooldown: 60, effect: 'blackhole'  }},
-      mini3: { hp: 4000, skill: { id: 'clone',     name: '분신',        duration: 8,  cooldown: 75, effect: 'clone'      }},
+      mini1: { hp: 1500, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
+      mini2: { hp: 2500, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
+      mini3: { hp: 4000, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
       final: { hp: 15000, skill: null }
     };
 
     const cfg = configs[kind] || configs.mini1;
-    this.hp    = cfg.hp;
+    this.hp = cfg.hp;
     this.skill = cfg.skill;
 
     // 메인보스 전용
@@ -47,23 +47,30 @@ export default class Boss extends Phaser.Events.EventEmitter {
   //  체력바 생성 (화면 상단 고정)
   // ──────────────────────────────────────────
   _buildHpBar() {
-    const scene  = this.scene;
-    const barW   = (this.kind === 'final') ? 600 : 400;
-    const barX   = 480;
-    const barY   = (this.kind === 'final') ? 28 : 20;
-    const label  = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
-    const color  = (this.kind === 'final') ? 0xff2200 : 0xff6600;
+    const scene = this.scene;
+    const barW = (this.kind === 'final') ? 600 : 400;
+    const barX = 480;
+
+    // 경험치바가 Player.js에서 y = 42에 있으니까,
+    // 미니보스 체력바는 그 아래인 y = 70으로 이동
+    const barY = (this.kind === 'final') ? 28 : 72;
+
+    const label = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
+    const color = (this.kind === 'final') ? 0xff2200 : 0xff6600;
 
     this.hpBarBg = scene.add.rectangle(barX, barY, barW + 4, 18, 0x000000)
       .setScrollFactor(0).setDepth(25).setAlpha(0.8);
     this.hpBarFill = scene.add.rectangle(barX - barW / 2, barY, barW, 14, color)
       .setScrollFactor(0).setDepth(26).setOrigin(0, 0.5);
-    this.hpBarLabel = scene.add.text(barX, barY - 16, label, {
-      fontSize: '13px', color: '#ffddaa', stroke: '#000', strokeThickness: 3
+    this.hpBarLabel = scene.add.text(barX, barY - 18, label, {
+      fontSize: '13px',
+      color: '#ffddaa',
+      stroke: '#000',
+      strokeThickness: 3
     }).setScrollFactor(0).setDepth(27).setOrigin(0.5);
 
     this._maxHp = this.hp;
-    this._barW  = barW;
+    this._barW = barW;
   }
 
   _destroyHpBar() {
@@ -93,12 +100,12 @@ export default class Boss extends Phaser.Events.EventEmitter {
     // 메인보스 페이즈 전환
     if (this.kind === 'final') {
       if (this.phase === 1 && this.hp <= 10000) this.setPhase(2);
-      if (this.phase === 2 && this.hp <=  5000) this.setPhase(3);
+      if (this.phase === 2 && this.hp <= 5000) this.setPhase(3);
     }
 
     // 플레이어 추적
     const player = this.scene.player.sprite;
-    const angle  = Phaser.Math.Angle.Between(
+    const angle = Phaser.Math.Angle.Between(
       this.sprite.x, this.sprite.y, player.x, player.y
     );
 
@@ -123,7 +130,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
   // ──────────────────────────────────────────
   firePattern() {
     const bullets = (this.kind === 'final' && this.phase === 3) ? 36 : 12;
-    const speed   = (this.kind === 'final' && this.phase >= 2)  ? 180 : 120;
+    const speed = (this.kind === 'final' && this.phase >= 2) ? 180 : 120;
 
     // GameScene에 enemyBullets 그룹이 있어야 함
     if (!this.scene.enemyBullets) return;
@@ -176,8 +183,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // 폭발 파티클
     const emitter = this.scene.add.particles(this.sprite.x, this.sprite.y, 'particle_star', {
-      speed:    { min: -200, max: 200 },
-      scale:    { start: 1.0, end: 0 },
+      speed: { min: -200, max: 200 },
+      scale: { start: 1.0, end: 0 },
       lifespan: 800,
       emitting: false
     });
@@ -187,7 +194,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       emitter.destroy();
       overlay.destroy();
       if (this.skill) this.emit('defeated', this.skill);
-      else            this.emit('defeated');
+      else this.emit('defeated');
       if (this.sprite && this.sprite.active) this.sprite.destroy();
     });
   }

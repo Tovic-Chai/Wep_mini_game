@@ -23,8 +23,8 @@ export default class OrbitWeapon extends PassiveWeapon {
       { damage: 8,  count: 2, radius: 70, rotSpeed: 1.5 }, // Lv1
       { damage: 12, count: 2, radius: 75, rotSpeed: 2.0 }, // Lv2
       { damage: 16, count: 3, radius: 80, rotSpeed: 2.5 }, // Lv3
-      { damage: 20, count: 3, radius: 85, rotSpeed: 3.0 }, // Lv4
-      { damage: 25, count: 4, radius: 90, rotSpeed: 3.5 }, // Lv5
+      { damage: 20, count: 4, radius: 85, rotSpeed: 3.0 }, // Lv4
+      { damage: 25, count: 5, radius: 90, rotSpeed: 3.5 }, // Lv5
     ];
     const s = STATS[this.level];
     this.damage   = s.damage;

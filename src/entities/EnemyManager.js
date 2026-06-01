@@ -6,8 +6,8 @@ export default class EnemyManager {
     this.group = scene.physics.add.group();
     this.bossGroup = scene.physics.add.group();
     this.spawnTimer = 0;
-    this.spawnInterval = 1.0;
-    this.maxEnemies = 60;
+    this.spawnInterval = 0.75;
+    this.maxEnemies = 140;
     this.started = false;
     this.totalSpawned = 0;
   }
@@ -16,7 +16,8 @@ export default class EnemyManager {
 
   update(dt, gameTime) {
     if (!this.started) return;
-    this.spawnInterval = Math.max(0.2, 1.0 - gameTime * 0.0009);
+    // 시간이 지날수록 더 빠르게 생성
+    this.spawnInterval = Math.max(0.12, 0.75 - gameTime * 0.0012);
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = this.spawnInterval;
@@ -34,7 +35,7 @@ export default class EnemyManager {
   // ★ 플레이어 주위 360도 어디서나 스폰 (화면 가장자리 바로 바깥)
   spawnEnemy(gameTime) {
     let type = 'M01';
-    if (gameTime > 60)  type = Phaser.Math.RND.pick(['M01', 'M02']);
+    if (gameTime > 60) type = Phaser.Math.RND.pick(['M01', 'M02']);
     if (gameTime > 120) type = Phaser.Math.RND.pick(['M01', 'M02', 'M03']);
 
     const player = this.scene.player.sprite;
@@ -44,7 +45,7 @@ export default class EnemyManager {
     const x = player.x + Math.cos(angle) * distance;
     const y = player.y + Math.sin(angle) * distance;
 
-    const enemy = new Enemy(this.scene, x, y, type);
+    const enemy = new Enemy(this.scene, x, y, type, gameTime);
     this.group.add(enemy.sprite);
     this.totalSpawned++;
   }
