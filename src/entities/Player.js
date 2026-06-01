@@ -1,26 +1,29 @@
 import Skill from './Skill.js';
-import FireballWeapon  from './weapons/FireballWeapon.js';
+import FireballWeapon from './weapons/FireballWeapon.js';
 import LightningWeapon from './weapons/LightningWeapon.js';
-import OrbitWeapon     from './weapons/OrbitWeapon.js';
+import OrbitWeapon from './weapons/OrbitWeapon.js';
 
 // ── 플레이어 표시 크기 (이미지 실제 크기와 무관하게 고정) ──
-export const PLAYER_DISPLAY_SIZE = 60;
+export const PLAYER_DISPLAY_SIZE = 68;
+
+const PLAYER_HITBOX_W = 290;
+const PLAYER_HITBOX_H = 380;
 
 // ── 4방향 애니메이션 프레임 (텍스처 키 배열) ──
 const ANIMATIONS = {
-  down:  ['player_down_idle', 'player_down_r1', 'player_down_r2',
-          'player_down_idle', 'player_down_l1', 'player_down_l2'],
-  up:    ['player_up_idle',   'player_up_r1',   'player_up_r2',
-          'player_up_idle',   'player_up_l1',   'player_up_l2'],
+  down: ['player_down_idle', 'player_down_r1', 'player_down_r2',
+    'player_down_idle', 'player_down_l1', 'player_down_l2'],
+  up: ['player_up_idle', 'player_up_r1', 'player_up_r2',
+    'player_up_idle', 'player_up_l1', 'player_up_l2'],
   right: ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
-  left:  ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
+  left: ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
 };
 
 const IDLE_TEXTURES = {
-  down:  'player_down_idle',
-  up:    'player_up_idle',
+  down: 'player_down_idle',
+  up: 'player_up_idle',
   right: 'player_side_idle',
-  left:  'player_side_idle',
+  left: 'player_side_idle',
 };
 
 export default class Player {
@@ -35,14 +38,16 @@ export default class Player {
     this.sprite = scene.physics.add.sprite(x, y, initTex)
       .setDepth(2)
       .setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
+
     this.sprite.setCollideWorldBounds(true);
+    this._updateHitbox();
 
     // ── 기본 스탯 ──
-    this.hp          = 100;
-    this.maxHp       = 100;
+    this.hp = 100;
+    this.maxHp = 100;
     this.attackPower = 10;
-    this.speed       = 200;
-    this.attackRate  = 0.5;
+    this.speed = 200;
+    this.attackRate = 0.5;
     this.attackTimer = 0;
     this.bulletCount = 1;
 
@@ -53,12 +58,12 @@ export default class Player {
     });
 
     // ── 레벨 / 경험치 ──
-    this.level     = 1;
-    this.exp       = 0;
+    this.level = 1;
+    this.exp = 0;
     this.expToNext = 20;
 
     // ── 액티브 스킬 (Q / E / C) ──
-    this.skills         = { Q: null, E: null, C: null };
+    this.skills = { Q: null, E: null, C: null };
     this.skillCooldowns = { Q: 0, E: 0, C: 0 };
 
     this.keyQ = scene.input.keyboard.addKey('Q');
@@ -69,20 +74,20 @@ export default class Player {
     this.passiveWeapons = [];
 
     // ── 4방향 애니메이션 상태 ──
-    this.direction     = 'down';
-    this.frameIndex    = 0;
-    this.frameTimer    = 0;
+    this.direction = 'down';
+    this.frameIndex = 0;
+    this.frameTimer = 0;
     this.frameInterval = 0.12; // 초 (약 8fps)
 
     // ── HUD: 체력바 ──
     const hpY = PLAYER_DISPLAY_SIZE / 2 + 8;
     this.hpBarBg = scene.add.rectangle(x, y + hpY, 42, 6, 0x000000).setDepth(5);
-    this.hpBar   = scene.add.rectangle(x, y + hpY, 40, 4, 0x00ff66).setDepth(6);
+    this.hpBar = scene.add.rectangle(x, y + hpY, 40, 4, 0x00ff66).setDepth(6);
 
     // ── HUD: 경험치바 (화면 고정) ──
     this.expBarBg = scene.add.rectangle(480, 42, 220, 10, 0x000000)
       .setScrollFactor(0).setDepth(20);
-    this.expBar   = scene.add.rectangle(370, 42, 0, 8, 0x44ff88)
+    this.expBar = scene.add.rectangle(370, 42, 0, 8, 0x44ff88)
       .setOrigin(0, 0.5).setScrollFactor(0).setDepth(21);
 
     // ── HUD: 레벨 텍스트 ──
@@ -114,24 +119,24 @@ export default class Player {
   // ────────────────────────────────────────────
   _handleMovement(dt, cursors, keys) {
     let dx = 0, dy = 0;
-    if (cursors.left.isDown  || keys.A.isDown) dx -= 1;
+    if (cursors.left.isDown || keys.A.isDown) dx -= 1;
     if (cursors.right.isDown || keys.D.isDown) dx += 1;
-    if (cursors.up.isDown    || keys.W.isDown) dy -= 1;
-    if (cursors.down.isDown  || keys.S.isDown) dy += 1;
+    if (cursors.up.isDown || keys.W.isDown) dy -= 1;
+    if (cursors.down.isDown || keys.S.isDown) dy += 1;
 
     const isMoving = dx !== 0 || dy !== 0;
-    const slow     = keys.SHIFT && keys.SHIFT.isDown;
-    const spd      = slow ? this.speed * 0.5 : this.speed;
+    const slow = keys.SHIFT && keys.SHIFT.isDown;
+    const spd = slow ? this.speed * 0.5 : this.speed;
 
     if (isMoving) {
       const len = Math.hypot(dx, dy);
       this.sprite.setVelocity((dx / len) * spd, (dy / len) * spd);
 
       // 방향 결정: 좌우 우선 (대각선 이동 시)
-      if      (dx > 0) this._changeDirection('right');
+      if (dx > 0) this._changeDirection('right');
       else if (dx < 0) this._changeDirection('left');
       else if (dy < 0) this._changeDirection('up');
-      else             this._changeDirection('down');
+      else this._changeDirection('down');
 
       this._animateStep(dt);
     } else {
@@ -146,7 +151,7 @@ export default class Player {
   /** 방향이 바뀔 때 프레임 리셋 */
   _changeDirection(newDir) {
     if (this.direction === newDir) return;
-    this.direction  = newDir;
+    this.direction = newDir;
     this.frameIndex = 0;
     this.frameTimer = 0;
     this._applyTexture(IDLE_TEXTURES[newDir]);
@@ -170,12 +175,33 @@ export default class Player {
    */
   _applyTexture(key) {
     const tex = this.scene.textures.exists(key) ? key : 'player';
+
     if (this.sprite.texture.key !== tex) {
       this.sprite.setTexture(tex)
         .setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
+
+      // 텍스처가 바뀌면 판정 박스도 다시 맞춰줌
+      this._updateHitbox();
     }
-    // 왼쪽 이동 시 오른쪽 측면 이미지를 수평 반전
+
     this.sprite.setFlipX(this.direction === 'left');
+  }
+
+  _updateHitbox() {
+    if (!this.sprite || !this.sprite.body) return;
+
+    // 이미지 전체가 아니라 몸통 중심만 피격 판정
+    this.sprite.body.setSize(
+      PLAYER_HITBOX_W,
+      PLAYER_HITBOX_H,
+      true
+    );
+
+    // 판정 범위를 살짝 아래로 내리고 싶으면 아래 주석 해제
+    // this.sprite.body.setOffset(
+    //   (this.sprite.width - PLAYER_HITBOX_W) / 2,
+    //   (this.sprite.height - PLAYER_HITBOX_H) / 2 + 4
+    // );
   }
 
   // ────────────────────────────────────────────
@@ -203,7 +229,7 @@ export default class Player {
 
     if (!nearest) return;
 
-    const base   = Phaser.Math.Angle.Between(me.x, me.y, nearest.x, nearest.y);
+    const base = Phaser.Math.Angle.Between(me.x, me.y, nearest.x, nearest.y);
     const spread = this._spreadAngles(this.bulletCount);
     for (const off of spread) this._spawnBullet(me.x, me.y, base + off);
   }
@@ -259,9 +285,9 @@ export default class Player {
       existing.levelUp();
     } else {
       let w;
-      if (type === 'fireball')  w = new FireballWeapon(this.scene, this);
+      if (type === 'fireball') w = new FireballWeapon(this.scene, this);
       if (type === 'lightning') w = new LightningWeapon(this.scene, this);
-      if (type === 'orbit')     w = new OrbitWeapon(this.scene, this);
+      if (type === 'orbit') w = new OrbitWeapon(this.scene, this);
       if (w) this.passiveWeapons.push(w);
     }
   }
@@ -281,9 +307,9 @@ export default class Player {
     this.hpBar.setPosition(x - (40 - 40 * (this.hp / this.maxHp)) / 2, hpY);
     this.hpBar.width = 40 * (this.hp / this.maxHp);
 
-    if (this.hp < this.maxHp * 0.3)      this.hpBar.fillColor = 0xff3333;
+    if (this.hp < this.maxHp * 0.3) this.hpBar.fillColor = 0xff3333;
     else if (this.hp < this.maxHp * 0.6) this.hpBar.fillColor = 0xffcc00;
-    else                                  this.hpBar.fillColor = 0x00ff66;
+    else this.hpBar.fillColor = 0x00ff66;
 
     this.expBar.width = 220 * (this.exp / this.expToNext);
     this.levelText.setText(`Lv.${this.level}`);
