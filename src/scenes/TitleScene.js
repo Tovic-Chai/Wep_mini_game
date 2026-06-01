@@ -5,8 +5,13 @@ export default class TitleScene extends Phaser.Scene {
     const W = 960, H = 640;
 
     // ── 배경 (별 필드, BootScene에서 생성된 텍스처 사용) ──
-    this.add.tileSprite(W / 2, H / 2, W, H, 'bg_space_far').setScrollFactor(0).setDepth(-3);
-    this.add.tileSprite(W / 2, H / 2, W, H, 'bg_space_mid').setScrollFactor(0).setDepth(-2);
+    this.bgFar = this.add.tileSprite(W / 2, H / 2, W, H, 'bg_space_far')
+      .setScrollFactor(0)
+      .setDepth(-3);
+
+    this.bgMid = this.add.tileSprite(W / 2, H / 2, W, H, 'bg_space_mid')
+      .setScrollFactor(0)
+      .setDepth(-2);
 
     // ── 타이틀 텍스트 ──
     this.add.text(W / 2, 140, 'SPACE GUARDER', {
@@ -27,17 +32,19 @@ export default class TitleScene extends Phaser.Scene {
 
     // ── 조작 설명 ──
     const controlLines = [
-      '🎮  조작 방법',
+      '  조작 방법     ',
       '',
-      'WASD / 방향키   이동',
-      'Shift              저속 이동 (정밀 회피)',
-      'Q / E / R         보스 흡수 스킬 사용',
+      'WASD / 방향키   이동            ',
+      '               Shift   저속 이동 (정밀 회피)      ',
+      '        Q / E / C   보스 흡수 스킬 사용     ',
       '',
-      '✦  기본 공격 자동 발사',
-      '✦  레벨업 시 강화 카드 선택',
-      '✦  미니보스 처치 → 스킬 흡수',
+      '  게임 설명     ',
+      '',
+      '✦  기본 공격 자동 발사     ',
+      '✦  레벨업 시 강화 카드 선택 ',
+      '✦  미니보스 처치 시 스킬 흡수',
     ];
-    const controlText = this.add.text(W / 2, 320, controlLines.join('\n'), {
+    const controlText = this.add.text(W / 2, 275, controlLines.join('\n'), {
       fontSize: '16px',
       color: '#ccddee',
       lineSpacing: 6,
@@ -90,4 +97,16 @@ export default class TitleScene extends Phaser.Scene {
       ease: 'Sine.InOut'
     });
   }
+
+
+  update(time, delta) {
+    const dt = delta / 1000;
+
+    this.bgFar.tilePositionX += 8 * dt;
+    this.bgFar.tilePositionY += 4 * dt;
+
+    this.bgMid.tilePositionX += 18 * dt;
+    this.bgMid.tilePositionY += 10 * dt;
+  }
+
 }
