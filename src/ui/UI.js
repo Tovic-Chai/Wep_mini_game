@@ -1,6 +1,6 @@
 export default class UI {
   constructor(scene, player) {
-    this.scene  = scene;
+    this.scene = scene;
     this.player = player;
     this.create();
   }

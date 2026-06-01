@@ -1,7 +1,7 @@
-import Player       from '../entities/Player.js';
+import Player from '../entities/Player.js';
 import EnemyManager from '../entities/EnemyManager.js';
-import Boss         from '../entities/Boss.js';
-import UI           from '../ui/UI.js';
+import Boss from '../entities/Boss.js';
+import UI from '../ui/UI.js';
 
 // 월드 크기 (루프 경계)
 const WORLD      = 6000;
@@ -20,31 +20,31 @@ export default class GameScene extends Phaser.Scene {
     // ── 배경 (시차 스크롤 타일) ──
     this.bgFar  = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
       .setScrollFactor(0).setDepth(-3);
-    this.bgMid  = this.add.tileSprite(480, 320, 960, 640, 'bg_space_mid')
+    this.bgMid = this.add.tileSprite(480, 320, 960, 640, 'bg_space_mid')
       .setScrollFactor(0).setDepth(-2);
     this.bgNear = this.add.tileSprite(480, 320, 960, 640, 'bg_space_near')
       .setScrollFactor(0).setDepth(-1);
 
     // ── 주요 엔티티 ──
-    this.player       = new Player(this, 0, 0);
+    this.player = new Player(this, 0, 0);
     this.enemyManager = new EnemyManager(this);
-    this.ui           = new UI(this, this.player);
+    this.ui = new UI(this, this.player);
 
     // ── 카메라: 경계 없이 플레이어 추적 (무한 맵용) ──
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     // setBounds 제거 → 카메라가 어느 방향으로든 자유롭게 스크롤
 
     // ── 타이밍 / 상태 ──
-    this.gameTime          = 0;
+    this.gameTime = 0;
     this.spawnedMiniBosses = 0;
-    this.boss              = null;
-    this.isLeveling        = false;
-    this.isGameOver        = false;
-    this.lastEnemyHitTime  = -1;
+    this.boss = null;
+    this.isLeveling = false;
+    this.isGameOver = false;
+    this.lastEnemyHitTime = -1;
 
     // ── 입력 ──
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys    = this.input.keyboard.addKeys('W,A,S,D,SHIFT,SPACE');
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,SHIFT,SPACE');
 
     this.enemyManager.start();
 
@@ -254,7 +254,7 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
 
     btn.on('pointerover', () => btn.setFillStyle(0x0077dd));
-    btn.on('pointerout',  () => btn.setFillStyle(0x0055aa));
+    btn.on('pointerout', () => btn.setFillStyle(0x0055aa));
     btn.on('pointerdown', () => {
       this.player.passiveWeapons?.forEach(w => w.destroy?.());
       this.scene.restart();
@@ -300,11 +300,46 @@ export default class GameScene extends Phaser.Scene {
     const picked = this._pickCards(pool, 3);
 
     const rarities = [
-      { name: '노말',   chance: 55,   color: 0xffffff },
-      { name: '레어',   chance: 27.5, color: 0x3399ff },
-      { name: '에픽',   chance: 12.5, color: 0xaa44ff },
-      { name: '레전드', chance: 5,    color: 0xffaa00 }
+      { name: '노말', chance: 55, color: 0xffffff },
+      { name: '레어', chance: 27.5, color: 0x3399ff },
+      { name: '에픽', chance: 12.5, color: 0xaa44ff },
+      { name: '레전드', chance: 5, color: 0xffaa00 }
     ];
+
+    // ── 부드러운 후광 텍스처 생성 ──
+    const makeSoftHaloTexture = (key, color, w = 520, h = 620) => {
+      if (this.textures.exists(key)) return;
+
+      const canvas = this.textures.createCanvas(key, w, h);
+      const ctx = canvas.getContext();
+
+      const cx = w / 2;
+      const cy = h / 2;
+
+      const gradient = ctx.createRadialGradient(
+        cx, cy,
+        40,
+        cx, cy,
+        Math.max(w, h) * 0.42
+      );
+
+      const hex = '#' + color.toString(16).padStart(6, '0');
+
+      gradient.addColorStop(0.00, hex + '55');
+      gradient.addColorStop(0.35, hex + '30');
+      gradient.addColorStop(0.65, hex + '14');
+      gradient.addColorStop(1.00, hex + '00');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      canvas.refresh();
+    };
+
+    makeSoftHaloTexture('soft_halo_normal', 0xb8c4d6);
+    makeSoftHaloTexture('soft_halo_rare', 0x3399ff);
+    makeSoftHaloTexture('soft_halo_epic', 0xaa44ff);
+    makeSoftHaloTexture('soft_halo_legend', 0xffdd44);
 
     picked.forEach((cardDef, i) => {
       const rarity    = this.rollRarity(rarities);
@@ -349,14 +384,93 @@ export default class GameScene extends Phaser.Scene {
       });
 
       card.on('pointerover', () => {
-        card.setScale(1.05);
-        glows.forEach((g, idx) => g.setScale(1.06 + idx * 0.02));
+        this.tweens.add({
+          targets: card,
+          scaleX: 1.035,
+          scaleY: 1.035,
+          duration: 220,
+          ease: 'Sine.Out'
+        });
+
+        this.tweens.add({
+          targets: glows,
+          scaleX: 1.04,
+          scaleY: 1.04,
+          alpha: rarity.name === '노말' ? 0.16 : 0.35,
+          duration: 220,
+          ease: 'Sine.Out'
+        });
+
+        this.tweens.add({
+          targets: [halo, haloLine],
+          scaleX: 1.04,
+          scaleY: 1.04,
+          alpha: rarity.name === '노말' ? 0.7 : 0.9,
+          duration: 260,
+          ease: 'Sine.Out'
+        });
       });
+
       card.on('pointerout', () => {
-        card.setScale(1);
-        glows.forEach(g => g.setScale(1));
+        this.tweens.add({
+          targets: card,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 240,
+          ease: 'Sine.InOut'
+        });
+
+        this.tweens.add({
+          targets: glows,
+          scaleX: 1,
+          scaleY: 1,
+          alpha: rarity.name === '노말' ? 0.08 : 0.18,
+          duration: 240,
+          ease: 'Sine.InOut'
+        });
+
+        this.tweens.add({
+          targets: [halo, haloLine],
+          scaleX: 1,
+          scaleY: 1,
+          alpha: 1,
+          duration: 260,
+          ease: 'Sine.InOut'
+        });
       });
       card.on('pointerdown', () => {
+        // 선택 순간 폭발
+        const selectTint =
+          rarity.name === '레전드' ? 0xfff2aa :
+            rarity.name === '에픽' ? 0xaa44ff :
+              rarity.name === '레어' ? 0x3399ff :
+                0xffffff;
+
+        const selectBurst = this.add.particles(x, 330, 'particle_star', {
+          speed: { min: 90, max: rarity.name === '레전드' ? 320 : 240 },
+          scale: {
+            start: rarity.name === '레전드' ? 0.7 :
+              rarity.name === '에픽' ? 0.45 : 0.35,
+            end: 0
+          },
+          tint: selectTint,
+          lifespan: rarity.name === '레전드' ? 900 : 700,
+          quantity: rarity.name === '레전드' ? 70 : rarity.name === '에픽' ? 45 : 25,
+          emitting: false,
+          blendMode: 'ADD'
+        })
+          .setDepth(150)
+          .setScrollFactor(0);
+
+        selectBurst.explode(
+          rarity.name === '레전드' ? 70 :
+            rarity.name === '에픽' ? 45 :
+              25
+        );
+
+
+        this.time.delayedCall(900, () => safeDestroy(selectBurst));
+
         applyFn();
         overlay.destroy();
         cardObjects.forEach(obj => { if (obj?.active) obj.destroy(); });
@@ -364,7 +478,7 @@ export default class GameScene extends Phaser.Scene {
         this.isLeveling = false;
       });
 
-      cardObjects.push(...allParts, shadow);
+      cardObjects.push(...allParts);
     });
   }
 

@@ -57,7 +57,7 @@ export default class Player {
     this.exp       = 0;
     this.expToNext = 20;
 
-    // ── 액티브 스킬 (Q / E / R) ──
+    // ── 액티브 스킬 (Q / E / C) ──
     this.skills         = { Q: null, E: null, R: null };
     this.skillCooldowns = { Q: 0, E: 0, R: 0 };
 
