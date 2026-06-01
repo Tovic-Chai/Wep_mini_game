@@ -105,7 +105,7 @@ export default class UI {
     this.timerText.setColor(remain <= 60 ? '#ff4444' : '#ffffff');
 
     // 스킬 슬롯
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       const skill = p.skills[k];
       const cd    = p.skillCooldowns[k];
       let label;

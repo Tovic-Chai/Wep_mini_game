@@ -52,27 +52,21 @@ export default class Boss extends Phaser.Events.EventEmitter {
   //  체력바 생성 (화면 상단 고정)
   // ──────────────────────────────────────────
   _buildHpBar() {
-    const scene = this.scene;
-    const barW = (this.kind === 'final') ? 600 : 400;
-    const barX = 480;
-
-    // 경험치바가 Player.js에서 y = 42에 있으니까,
-    // 미니보스 체력바는 그 아래인 y = 70으로 이동
-    const barY = (this.kind === 'final') ? 28 : 72;
-
-    const label = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
-    const color = (this.kind === 'final') ? 0xff2200 : 0xff6600;
+    const scene  = this.scene;
+    const barW   = (this.kind === 'final') ? 600 : 400;
+    const barX   = 480;
+    // 상단 HUD 패널(y 0~54) 아래에 배치해 타이머·HP 텍스트와 겹치지 않게 한다
+    const barY   = (this.kind === 'final') ? 84 : 76;
+    const label  = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
+    const color  = (this.kind === 'final') ? 0xff2200 : 0xff6600;
 
     this.hpBarBg = scene.add.rectangle(barX, barY, barW + 4, 18, 0x000000)
-      .setScrollFactor(0).setDepth(25).setAlpha(0.8);
+      .setScrollFactor(0).setDepth(45).setAlpha(0.8);
     this.hpBarFill = scene.add.rectangle(barX - barW / 2, barY, barW, 14, color)
-      .setScrollFactor(0).setDepth(26).setOrigin(0, 0.5);
+      .setScrollFactor(0).setDepth(46).setOrigin(0, 0.5);
     this.hpBarLabel = scene.add.text(barX, barY - 18, label, {
-      fontSize: '13px',
-      color: '#ffddaa',
-      stroke: '#000',
-      strokeThickness: 3
-    }).setScrollFactor(0).setDepth(27).setOrigin(0.5);
+      fontSize: '15px', fontStyle: 'bold', color: '#ffddaa', stroke: '#000', strokeThickness: 4
+    }).setScrollFactor(0).setDepth(46).setOrigin(0.5);
 
     this._maxHp = this.hp;
     this._barW = barW;
@@ -237,6 +231,20 @@ export default class Boss extends Phaser.Events.EventEmitter {
       Math.cos(angle) * speed,
       Math.sin(angle) * speed
     );
+  }
+
+  // ──────────────────────────────────────────
+  //  원형 전방위 탄막 (count발을 360도로 균등 발사)
+  // ──────────────────────────────────────────
+  fireCirclePattern(count = 16, speed = 120) {
+    const base = Phaser.Math.DegToRad(this.angleOffset);
+    for (let i = 0; i < count; i++) {
+      const angle = base + (Math.PI * 2 / count) * i;
+      const bx = this.sprite.x + Math.cos(angle) * 20;
+      const by = this.sprite.y + Math.sin(angle) * 20;
+      this._spawnBossBullet(bx, by, angle, speed, 1.2);
+    }
+    this.angleOffset += 10;
   }
 
   // ──────────────────────────────────────────

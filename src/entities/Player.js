@@ -8,10 +8,8 @@ export const PLAYER_DISPLAY_SIZE = 60;
 
 // ── 4방향 애니메이션 프레임 (텍스처 키 배열) ──
 const ANIMATIONS = {
-  down:  ['player_down_idle', 'player_down_r1', 'player_down_r2',
-          'player_down_idle', 'player_down_l1', 'player_down_l2'],
-  up:    ['player_up_idle',   'player_up_r1',   'player_up_r2',
-          'player_up_idle',   'player_up_l1',   'player_up_l2'],
+  down:  ['player_down_idle', 'player_down_r1', 'player_down_r2', 'player_down_r1'],
+  up:    ['player_up_idle',   'player_up_r1',   'player_up_r2',   'player_up_r1'],
   right: ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
   left:  ['player_side_idle', 'player_side_r1', 'player_side_r2', 'player_side_r1'],
 };
@@ -58,12 +56,12 @@ export default class Player {
     this.expToNext = 20;
 
     // ── 액티브 스킬 (Q / E / C) ──
-    this.skills         = { Q: null, E: null, C: null };
-    this.skillCooldowns = { Q: 0, E: 0, C: 0 };
+    this.skills         = { Q: null, E: null, R: null };
+    this.skillCooldowns = { Q: 0, E: 0, R: 0 };
 
     this.keyQ = scene.input.keyboard.addKey('Q');
     this.keyE = scene.input.keyboard.addKey('E');
-    this.keyC = scene.input.keyboard.addKey('C');
+    this.keyR = scene.input.keyboard.addKey('R');
 
     // ── 패시브 무기 ──
     this.passiveWeapons = [];
@@ -224,11 +222,11 @@ export default class Player {
   _handleSkillKeys() {
     if (Phaser.Input.Keyboard.JustDown(this.keyQ)) this.useSkill('Q');
     if (Phaser.Input.Keyboard.JustDown(this.keyE)) this.useSkill('E');
-    if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.useSkill('C');
+    if (Phaser.Input.Keyboard.JustDown(this.keyR)) this.useSkill('R');
   }
 
   _updateCooldowns(dt) {
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       if (this.skillCooldowns[k] > 0)
         this.skillCooldowns[k] = Math.max(0, this.skillCooldowns[k] - dt);
     }
@@ -314,7 +312,7 @@ export default class Player {
   }
 
   acquireSkill(skillData) {
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       if (!this.skills[k]) { this.skills[k] = new Skill(this.scene, skillData); return; }
     }
     this.skills['Q'] = new Skill(this.scene, skillData);
