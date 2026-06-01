@@ -35,7 +35,7 @@ export default class Player {
     this.sprite = scene.physics.add.sprite(x, y, initTex)
       .setDepth(2)
       .setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
-    this.sprite.setCollideWorldBounds(true);
+    // no world-bounds clamping: _wrapPlayer() handles edge teleport
 
     // ── 기본 스탯 ──
     this.hp          = 100;
@@ -78,18 +78,6 @@ export default class Player {
     const hpY = PLAYER_DISPLAY_SIZE / 2 + 8;
     this.hpBarBg = scene.add.rectangle(x, y + hpY, 42, 6, 0x000000).setDepth(5);
     this.hpBar   = scene.add.rectangle(x, y + hpY, 40, 4, 0x00ff66).setDepth(6);
-
-    // ── HUD: 경험치바 (화면 고정) ──
-    this.expBarBg = scene.add.rectangle(480, 42, 220, 10, 0x000000)
-      .setScrollFactor(0).setDepth(20);
-    this.expBar   = scene.add.rectangle(370, 42, 0, 8, 0x44ff88)
-      .setOrigin(0, 0.5).setScrollFactor(0).setDepth(21);
-
-    // ── HUD: 레벨 텍스트 ──
-    this.levelText = scene.add.text(255, 34, `Lv.${this.level}`, {
-      fontSize: '18px', color: '#44ff88',
-      stroke: '#000', strokeThickness: 3
-    }).setScrollFactor(0).setDepth(22);
 
     // 무적 타이머
     this.invincibleTimer = 0;
@@ -285,8 +273,7 @@ export default class Player {
     else if (this.hp < this.maxHp * 0.6) this.hpBar.fillColor = 0xffcc00;
     else                                  this.hpBar.fillColor = 0x00ff66;
 
-    this.expBar.width = 220 * (this.exp / this.expToNext);
-    this.levelText.setText(`Lv.${this.level}`);
+    // exp bar + level text managed by UI.js
   }
 
   // ────────────────────────────────────────────
