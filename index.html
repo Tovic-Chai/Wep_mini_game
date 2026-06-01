@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>우주 탄막 서바이벌</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #000011;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+      color: #fff;
+      overflow: hidden;
+    }
+    #game-container {
+      box-shadow: 0 0 40px rgba(80, 140, 255, 0.35);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <!-- Phaser 3을 CDN으로 로드 (먼저 실행되어 전역 Phaser 객체 생성) -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <!-- 우리 게임 코드 (ES 모듈) -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
