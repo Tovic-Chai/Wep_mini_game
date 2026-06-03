@@ -11,13 +11,20 @@ export default class Boss extends Phaser.Events.EventEmitter {
       final: 'boss_final_phase1'
     };
     const scaleMap = {
-      mini1: 0.2, mini2: 0.3, mini3: 0.26, final: 0.4
+      mini1: 0.5, mini2: 0.3, mini3: 0.26, final: 0.4  // mini1: 500×500px 이미지 기준
     };
 
     this.sprite = scene.physics.add.sprite(x, y, keyMap[kind] || 'boss_mini1')
       .setDepth(3)
       .setScale(scaleMap[kind] || 0.3);
+
+    // setScale() does NOT resize the Arcade Physics body — must set explicitly.
+    const bodySizeMap = { mini1: 250, mini2: 220, mini3: 220, final: 240 };
+    const bs = bodySizeMap[kind] || 220;
+    this.sprite.body.setSize(bs, bs);
+
     this.sprite.parentRef = this;
+    this._bodySize  = bs;                     // setTexture 후 body 재적용용
 
     this.alive = true;
     this.attackTimer = 0;
@@ -31,23 +38,29 @@ export default class Boss extends Phaser.Events.EventEmitter {
     };
 
     const cfg = configs[kind] || configs.mini1;
-    this.hp = cfg.hp;
+
+    // 플레이어 레벨 비례 HP 스케일 (최소 2배)
+    const playerLevel = scene.player?.level || 1;
+    const hpScale = Math.max(2, 1 + (playerLevel - 1) * 0.35);
+    this.hp = Math.floor(cfg.hp * hpScale);
     this.skill = cfg.skill;
 
     // 메인보스 전용
     if (kind === 'final') this.phase = 1;
 
     this.angleOffset = 0;
+    this._baseScale = scaleMap[kind] || 0.3;  // 캐스팅 스케일 복원용
 
     // ── 미니보스1 애니메이션 상태 ──
     if (kind === 'mini1') {
-      this._animTimer = 0;
-      this._animFrame = 0;
-      this._animDir   = 'back';
+      this._animTimer  = 0;
+      this._animFrame  = 0;
+      this._animDir    = 'back';
+      this._isCasting  = false;  // 마법진 시전 중 이동 정지 플래그
     }
 
     // ── 보스별 특수 패턴 타이머 ──
-    this.patternTimer = 0;
+    this.patternTimer = 9;  // 초기 유예 시간 + 첫 시전까지 9초
     this.specialTimer = 0;
     this.teleportTimer = 4;
     this.cloneSprites = [];
@@ -100,6 +113,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._animFrame = (this._animFrame + 1) % RIGHT.length;
       this.sprite.setTexture(RIGHT[this._animFrame]).setFlipX(vx < 0);
     }
+
+    // setTexture() resets body size to texture dimensions — restore after every frame change
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
 
   // ──────────────────────────────────────────
@@ -170,8 +186,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
 
     // ── 미니보스 특수 패턴 ──
-    if (this.kind === 'mini1' && this.patternTimer <= 0) {
-      this.patternTimer = 5;
+    if (this.kind === 'mini1' && this.patternTimer <= 0 && !this._isCasting) {
+      this.patternTimer = 9;
       this.castSlowZone();
     }
 
@@ -228,7 +244,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       moveSpeed = [null, 60, 85, 110][this.phase] || 60;
     }
 
-    if (this.moveLockTimer > 0) {
+    if (this.moveLockTimer > 0 || (this.kind === 'mini1' && this._isCasting)) {
       this.sprite.setVelocity(0, 0);
     } else {
       this.sprite.setVelocity(
@@ -237,7 +253,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       );
     }
 
-    if (this.kind === 'mini1') this._updateMini1Anim(dt);
+    if (this.kind === 'mini1' && !this._isCasting) this._updateMini1Anim(dt);
     this._updateHpBar();
   }
 
@@ -354,7 +370,43 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     const x = player.sprite.x;
     const y = player.sprite.y;
-    const radius = 105;
+    const radius = 150;
+
+    // ── 캐스팅 시작: 이동 정지 + 4단계 텍스처 전환 ──
+    // setTexture()는 내부적으로 body.setSize(textureW, textureH)를 호출해
+    // body offset이 바뀌고 다음 postUpdate에서 스프라이트가 튀어 사라짐.
+    // 매 프레임 교체 후 scale · body · depth를 명시 복원한다.
+    const castScale = this._baseScale * 1.12;
+    const bs = this._bodySize;
+
+    const _applyFrame = (key) => {
+      if (!this.alive || !this.sprite?.active) return;
+      this.sprite
+        .setTexture(key)
+        .setFlipX(false)
+        .setScale(castScale)
+        .setDepth(10);            // 마법진(depth 3-6) 위에 항상 보이도록
+      this.sprite.body.setSize(bs, bs);
+    };
+
+    this._isCasting = true;
+    _applyFrame('mb1_cast1');
+
+    scene.time.delayedCall(350,  () => _applyFrame('mb1_cast2'));
+    scene.time.delayedCall(650,  () => _applyFrame('mb1_cast3'));
+    scene.time.delayedCall(900,  () => _applyFrame('mb1_cast4'));
+
+    // 마법진 종료(약 6300ms) 후 이동 재개 + 방향 애니메이션 복원
+    scene.time.delayedCall(6300, () => {
+      if (!this.alive) return;
+      this._isCasting  = false;
+      this._animFrame  = 0;
+      this._animTimer  = 0;
+      if (this.sprite?.active) {
+        this.sprite.setScale(this._baseScale).setDepth(3);
+        this.sprite.body.setSize(bs, bs);
+      }
+    });
 
     // 마법진 오브젝트들을 한 번에 관리
     const magicCircleParts = [];
