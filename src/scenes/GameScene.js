@@ -376,7 +376,14 @@ export default class GameScene extends Phaser.Scene {
         align: 'center', wordWrap: { width: 180 },
       }).setOrigin(0.5).setResolution(2).setDepth(105).setScrollFactor(0).setAlpha(0);
 
-      const allParts = [...glows, card, shadow, iconCircle, rarityText, statText];
+      const rarityKeyMap = { '노말': 'normal', '레어': 'rare', '에픽': 'epic', '레전드': 'legend' };
+      const haloKey = 'soft_halo_' + (rarityKeyMap[rarity.name] || 'normal');
+      const halo = this.add.image(x, 340, haloKey)
+        .setDepth(94).setScrollFactor(0).setAlpha(0);
+      const haloLine = this.add.rectangle(x, 196, 180, 2, rarity.color, 0.85)
+        .setDepth(107).setScrollFactor(0).setAlpha(0);
+
+      const allParts = [...glows, halo, haloLine, card, shadow, iconCircle, rarityText, statText];
       this.tweens.add({ targets: allParts, alpha: 1, duration: 250, delay: i * 120 });
       this.tweens.add({
         targets: [...glows, card], scaleX: 1, scaleY: 1,
@@ -469,7 +476,7 @@ export default class GameScene extends Phaser.Scene {
         );
 
 
-        this.time.delayedCall(900, () => safeDestroy(selectBurst));
+        this.time.delayedCall(900, () => { if (selectBurst?.active) selectBurst.destroy(); });
 
         applyFn();
         overlay.destroy();
