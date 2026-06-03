@@ -44,16 +44,20 @@ export default class Enemy {
       expTint: 0xffffff
     };
 
-    // 시간에 따른 체력 증가
-    // 30초마다 체력 15% 증가
-    const hpMultiplier = 1 + Math.floor(gameTime / 30) * 0.15;
+    // gameTime + 플레이어 레벨 복합 스케일링
+    const playerLevel = scene.player?.level || 1;
+    const timeFactor  = 1 + Math.floor(gameTime / 30) * 0.20;
+    const levelFactor = 1 + (playerLevel - 1) * 0.18;
+    const hpMultiplier = timeFactor * levelFactor;
 
     this.maxHp = Math.floor(base.hp * hpMultiplier);
     this.hp = this.maxHp;
     this.speed = base.speed;
     this.expValue = base.exp;
     this.expTint = base.expTint;
-    this.contactDmg = base.dmg;
+    // 접촉 데미지도 gameTime에 따라 소폭 증가
+    const dmgFactor = 1 + Math.floor(gameTime / 60) * 0.10;
+    this.contactDmg = Math.round(base.dmg * dmgFactor);
     this.alive = true;
     this.lifetime = 0;
   }

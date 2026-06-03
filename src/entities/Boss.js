@@ -37,13 +37,18 @@ export default class Boss extends Phaser.Events.EventEmitter {
     };
 
     const cfg = configs[kind] || configs.mini1;
-    this.hp = cfg.hp;
+
+    // 플레이어 레벨 비례 HP 스케일 (최소 2배)
+    const playerLevel = scene.player?.level || 1;
+    const hpScale = Math.max(2, 1 + (playerLevel - 1) * 0.35);
+    this.hp = Math.floor(cfg.hp * hpScale);
     this.skill = cfg.skill;
 
     // 메인보스 전용
     if (kind === 'final') this.phase = 1;
 
     this.angleOffset = 0;
+    this._baseScale = scaleMap[kind] || 0.3;  // 캐스팅 스케일 복원용
 
     // ── 미니보스1 애니메이션 상태 ──
     if (kind === 'mini1') {
@@ -343,8 +348,10 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const radius = 150;
 
     // ── 캐스팅 시작: 이동 정지 + 4단계 텍스처 전환 ──
+    // 캐스팅 프레임은 화면에서 살짝 더 크게 표시 (이미지 여백 보정)
+    const castScale = this._baseScale * 1.12;
     this._isCasting = true;
-    this.sprite.setTexture('mb1_cast1').setFlipX(false);
+    this.sprite.setTexture('mb1_cast1').setFlipX(false).setScale(castScale);
     scene.time.delayedCall(350, () => {
       if (!this.alive || !this.sprite?.active) return;
       this.sprite.setTexture('mb1_cast2');
@@ -363,6 +370,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._isCasting  = false;
       this._animFrame  = 0;
       this._animTimer  = 0;
+      if (this.sprite?.active) this.sprite.setScale(this._baseScale);
     });
 
     // 마법진 오브젝트들을 한 번에 관리
