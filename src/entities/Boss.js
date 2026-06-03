@@ -51,6 +51,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.specialTimer = 0;
     this.teleportTimer = 4;
     this.cloneSprites = [];
+    this.moveLockTimer = 0; // 순간이동 직후 잠깐 이동 정지
 
     // 체력바 (보스 HP 바)
     this._buildHpBar();
@@ -105,21 +106,27 @@ export default class Boss extends Phaser.Events.EventEmitter {
   //  체력바 생성 (화면 상단 고정)
   // ──────────────────────────────────────────
   _buildHpBar() {
-    const scene  = this.scene;
-    const barW   = (this.kind === 'final') ? 600 : 400;
-    const barX   = 480;
-    // 상단 HUD 패널(y 0~54) 아래에 배치해 타이머·HP 텍스트와 겹치지 않게 한다
-    const barY   = (this.kind === 'final') ? 84 : 76;
-    const label  = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
-    const color  = (this.kind === 'final') ? 0xff2200 : 0xff6600;
+    const scene = this.scene;
+    const barW = (this.kind === 'final') ? 600 : 400;
+    const barX = 480;
+
+    // 경험치바가 Player.js에서 y = 42에 있으니까,
+    // 미니보스 체력바는 그 아래인 y = 70으로 이동
+    const barY = (this.kind === 'final') ? 28 : 72;
+
+    const label = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
+    const color = (this.kind === 'final') ? 0xff2200 : 0xff6600;
 
     this.hpBarBg = scene.add.rectangle(barX, barY, barW + 4, 18, 0x000000)
-      .setScrollFactor(0).setDepth(45).setAlpha(0.8);
+      .setScrollFactor(0).setDepth(25).setAlpha(0.8);
     this.hpBarFill = scene.add.rectangle(barX - barW / 2, barY, barW, 14, color)
-      .setScrollFactor(0).setDepth(46).setOrigin(0, 0.5);
+      .setScrollFactor(0).setDepth(26).setOrigin(0, 0.5);
     this.hpBarLabel = scene.add.text(barX, barY - 18, label, {
-      fontSize: '15px', fontStyle: 'bold', color: '#ffddaa', stroke: '#000', strokeThickness: 4
-    }).setScrollFactor(0).setDepth(46).setOrigin(0.5);
+      fontSize: '13px',
+      color: '#ffddaa',
+      stroke: '#000',
+      strokeThickness: 3
+    }).setScrollFactor(0).setDepth(27).setOrigin(0.5);
 
     this._maxHp = this.hp;
     this._barW = barW;
@@ -147,6 +154,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.patternTimer -= dt;
     this.specialTimer -= dt;
     this.teleportTimer -= dt;
+    if (this.moveLockTimer > 0) {
+      this.moveLockTimer -= dt;
+    }
 
     if (this.attackTimer <= 0) {
       // 최종 보스는 페이즈가 올라갈수록 공격이 빨라짐
@@ -218,10 +228,14 @@ export default class Boss extends Phaser.Events.EventEmitter {
       moveSpeed = [null, 60, 85, 110][this.phase] || 60;
     }
 
-    this.sprite.setVelocity(
-      Math.cos(angle) * moveSpeed,
-      Math.sin(angle) * moveSpeed
-    );
+    if (this.moveLockTimer > 0) {
+      this.sprite.setVelocity(0, 0);
+    } else {
+      this.sprite.setVelocity(
+        Math.cos(angle) * moveSpeed,
+        Math.sin(angle) * moveSpeed
+      );
+    }
 
     if (this.kind === 'mini1') this._updateMini1Anim(dt);
     this._updateHpBar();
@@ -288,17 +302,26 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  원형 전방위 탄막 (count발을 360도로 균등 발사)
+  //  원형 탄막
   // ──────────────────────────────────────────
   fireCirclePattern(count = 16, speed = 120) {
-    const base = Phaser.Math.DegToRad(this.angleOffset);
+    if (!this.scene.enemyBullets) return;
+
+    const base = Phaser.Math.DegToRad(this.angleOffset || 0);
+
     for (let i = 0; i < count; i++) {
       const angle = base + (Math.PI * 2 / count) * i;
-      const bx = this.sprite.x + Math.cos(angle) * 20;
-      const by = this.sprite.y + Math.sin(angle) * 20;
-      this._spawnBossBullet(bx, by, angle, speed, 1.2);
+
+      this._spawnBossBullet(
+        this.sprite.x,
+        this.sprite.y,
+        angle,
+        speed,
+        1.1
+      );
     }
-    this.angleOffset += 10;
+
+    this.angleOffset += 8;
   }
 
   // ──────────────────────────────────────────
@@ -615,7 +638,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
   castBlackhole() {
     const scene = this.scene;
     const player = scene.player;
-    if (!player || !player.sprite) return;
+
+    if (!player || !player.sprite || !player.sprite.active || !player.sprite.body) return;
 
     const x = player.sprite.x + Phaser.Math.Between(-120, 120);
     const y = player.sprite.y + Phaser.Math.Between(-90, 90);
@@ -636,7 +660,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       delay: 50,
       repeat: 50,
       callback: () => {
-        if (!hole.active || !player.sprite.active) return;
+        if (!hole.active || !player.sprite || !player.sprite.active || !player.sprite.body) return;
 
         const px = player.sprite.x;
         const py = player.sprite.y;
@@ -731,7 +755,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  미니보스 3: 순간이동
+  //  미니보스 3: 플레이어 주변으로 순간이동
   // ──────────────────────────────────────────
   teleportNearPlayer() {
     const scene = this.scene;
@@ -741,6 +765,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const oldX = this.sprite.x;
     const oldY = this.sprite.y;
 
+    // 사라지는 이펙트
     const flash1 = scene.add.circle(oldX, oldY, 50, 0xaa44ff, 0.45)
       .setDepth(5);
 
@@ -749,24 +774,59 @@ export default class Boss extends Phaser.Events.EventEmitter {
       alpha: 0,
       scale: 1.8,
       duration: 250,
-      onComplete: () => flash1.destroy()
+      onComplete: () => {
+        if (flash1.active) flash1.destroy();
+      }
     });
 
+    // 플레이어에게 너무 가까이 안 붙도록 거리 증가
+    const minDist = 400;
+    const maxDist = 500;
+
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const dist = Phaser.Math.Between(180, 260);
+    const dist = Phaser.Math.Between(minDist, maxDist);
 
-    this.sprite.x = player.sprite.x + Math.cos(angle) * dist;
-    this.sprite.y = player.sprite.y + Math.sin(angle) * dist;
+    const targetX = player.sprite.x + Math.cos(angle) * dist;
+    const targetY = player.sprite.y + Math.sin(angle) * dist;
 
-    const flash2 = scene.add.circle(this.sprite.x, this.sprite.y, 50, 0xaa44ff, 0.45)
+    // 순간이동 위치 예고 표시
+    const warning = scene.add.circle(targetX, targetY, 42, 0xaa44ff, 0.16)
+      .setStrokeStyle(3, 0xdd99ff, 0.9)
       .setDepth(5);
 
     scene.tweens.add({
-      targets: flash2,
-      alpha: 0,
-      scale: 1.8,
-      duration: 250,
-      onComplete: () => flash2.destroy()
+      targets: warning,
+      alpha: 0.45,
+      scale: 1.25,
+      duration: 180,
+      yoyo: true,
+      repeat: 1
+    });
+
+    scene.time.delayedCall(320, () => {
+      if (warning.active) warning.destroy();
+
+      // 실제 순간이동
+      this.sprite.x = targetX;
+      this.sprite.y = targetY;
+
+      // 순간이동 직후 바로 돌진하지 않게 잠깐 정지
+      this.moveLockTimer = 0.55;
+      this.sprite.setVelocity(0, 0);
+
+      // 나타나는 이펙트
+      const flash2 = scene.add.circle(this.sprite.x, this.sprite.y, 55, 0xaa44ff, 0.45)
+        .setDepth(5);
+
+      scene.tweens.add({
+        targets: flash2,
+        alpha: 0,
+        scale: 1.8,
+        duration: 280,
+        onComplete: () => {
+          if (flash2.active) flash2.destroy();
+        }
+      });
     });
   }
 
