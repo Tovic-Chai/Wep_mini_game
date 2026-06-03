@@ -11,6 +11,16 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
 
+    // ── 미니보스1 방향별 애니메이션 ──
+    this.load.image('mb1_front_base',  'assets/images/mini_boss1_frontward_base.png');
+    this.load.image('mb1_front_alpha', 'assets/images/mini_boss1_frontward_base+alpha.png');
+    this.load.image('mb1_back_close',  'assets/images/mini_boss1_backward_eye_close.png');
+    this.load.image('mb1_back_half',   'assets/images/mini_boss1_backward_eye_open_half.png');
+    this.load.image('mb1_back_open',   'assets/images/mini_boss1_backward_eye_open.png');
+    this.load.image('mb1_right_close', 'assets/images/mini_boss1_rightward_eye_close.png');
+    this.load.image('mb1_right_half',  'assets/images/mini_boss1_rightward_eye_open_half.png');
+    this.load.image('mb1_right_open',  'assets/images/mini_boss1_rightward_eye_open.png');
+
     // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
     // 아래 방향 (후면 = 카메라 향해 걷기)
     this.load.image('player_down_idle', 'assets/images/후면_서있기.png');
