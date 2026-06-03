@@ -21,6 +21,12 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('mb1_right_half',  'assets/images/mini_boss1_rightward_eye_open_half.png');
     this.load.image('mb1_right_open',  'assets/images/mini_boss1_rightward_eye_open.png');
 
+    // ── 미니보스1 마법진 캐스팅 4단계 프레임 ──
+    this.load.image('mb1_cast1', 'assets/images/mini_boss1_cast_1.png');
+    this.load.image('mb1_cast2', 'assets/images/mini_boss1_cast_2.png');
+    this.load.image('mb1_cast3', 'assets/images/mini_boss1_cast_3.png');
+    this.load.image('mb1_cast4', 'assets/images/mini_boss1_cast_4.png');
+
     // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
     // 아래 방향 (후면 = 카메라 향해 걷기)
     this.load.image('player_down_idle', 'assets/images/후면_서있기.png');
