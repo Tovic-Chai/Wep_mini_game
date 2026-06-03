@@ -5,7 +5,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.kind = kind;
 
     const keyMap = {
-      mini1: 'boss_mini1',
+      mini1: 'mb1_back_close',
       mini2: 'boss_mini2',
       mini3: 'boss_mini3',
       final: 'boss_final_phase1'
@@ -38,6 +38,14 @@ export default class Boss extends Phaser.Events.EventEmitter {
     if (kind === 'final') this.phase = 1;
 
     this.angleOffset = 0;
+
+    // ── 미니보스1 애니메이션 상태 ──
+    if (kind === 'mini1') {
+      this._animTimer = 0;
+      this._animFrame = 0;
+      this._animDir   = 'back';
+    }
+
     // ── 보스별 특수 패턴 타이머 ──
     this.patternTimer = 0;
     this.specialTimer = 0;
@@ -46,6 +54,51 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // 체력바 (보스 HP 바)
     this._buildHpBar();
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스1 방향별 프레임 애니메이션
+  //  down(backward): eye_close→half→open→half 사이클
+  //  up(frontward) : base↔alpha 사이클
+  //  right/left    : eye_close→half→open→half (flipX)
+  // ──────────────────────────────────────────
+  _updateMini1Anim(dt) {
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    const absX = Math.abs(vx);
+    const absY = Math.abs(vy);
+
+    let dir;
+    if (absX > absY) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'back' : 'front';
+    }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+    this._animTimer = 0.22;
+
+    const BACK  = ['mb1_back_close',  'mb1_back_half',  'mb1_back_open',  'mb1_back_half'];
+    const FRONT = ['mb1_front_base',  'mb1_front_alpha'];
+    const RIGHT = ['mb1_right_close', 'mb1_right_half', 'mb1_right_open', 'mb1_right_half'];
+
+    if (dir === 'back') {
+      this._animFrame = (this._animFrame + 1) % BACK.length;
+      this.sprite.setTexture(BACK[this._animFrame]).setFlipX(false);
+    } else if (dir === 'front') {
+      this._animFrame = (this._animFrame + 1) % FRONT.length;
+      this.sprite.setTexture(FRONT[this._animFrame]).setFlipX(false);
+    } else {
+      this._animFrame = (this._animFrame + 1) % RIGHT.length;
+      this.sprite.setTexture(RIGHT[this._animFrame]).setFlipX(vx < 0);
+    }
   }
 
   // ──────────────────────────────────────────
@@ -170,6 +223,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       Math.sin(angle) * moveSpeed
     );
 
+    if (this.kind === 'mini1') this._updateMini1Anim(dt);
     this._updateHpBar();
   }
 
