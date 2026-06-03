@@ -17,6 +17,13 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.sprite = scene.physics.add.sprite(x, y, keyMap[kind] || 'boss_mini1')
       .setDepth(3)
       .setScale(scaleMap[kind] || 0.3);
+
+    // setScale() does NOT resize the Arcade Physics body — must set explicitly.
+    // mb1 textures are 1254×1254px; without this the hitbox is ~627px wide.
+    const bodySizeMap = { mini1: 200, mini2: 220, mini3: 220, final: 240 };
+    const bs = bodySizeMap[kind] || 220;
+    this.sprite.body.setSize(bs, bs);
+
     this.sprite.parentRef = this;
 
     this.alive = true;
