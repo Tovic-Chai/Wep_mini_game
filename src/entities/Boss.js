@@ -24,6 +24,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.sprite.body.setSize(bs, bs);
 
     this.sprite.parentRef = this;
+    this._bodySize  = bs;                     // setTexture 후 body 재적용용
 
     this.alive = true;
     this.attackTimer = 0;
@@ -348,29 +349,39 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const radius = 150;
 
     // ── 캐스팅 시작: 이동 정지 + 4단계 텍스처 전환 ──
-    // 캐스팅 프레임은 화면에서 살짝 더 크게 표시 (이미지 여백 보정)
+    // setTexture()는 내부적으로 body.setSize(textureW, textureH)를 호출해
+    // body offset이 바뀌고 다음 postUpdate에서 스프라이트가 튀어 사라짐.
+    // 매 프레임 교체 후 scale · body · depth를 명시 복원한다.
     const castScale = this._baseScale * 1.12;
+    const bs = this._bodySize;
+
+    const _applyFrame = (key) => {
+      if (!this.alive || !this.sprite?.active) return;
+      this.sprite
+        .setTexture(key)
+        .setFlipX(false)
+        .setScale(castScale)
+        .setDepth(10);            // 마법진(depth 3-6) 위에 항상 보이도록
+      this.sprite.body.setSize(bs, bs);
+    };
+
     this._isCasting = true;
-    this.sprite.setTexture('mb1_cast1').setFlipX(false).setScale(castScale);
-    scene.time.delayedCall(350, () => {
-      if (!this.alive || !this.sprite?.active) return;
-      this.sprite.setTexture('mb1_cast2');
-    });
-    scene.time.delayedCall(650, () => {
-      if (!this.alive || !this.sprite?.active) return;
-      this.sprite.setTexture('mb1_cast3');
-    });
-    scene.time.delayedCall(900, () => {
-      if (!this.alive || !this.sprite?.active) return;
-      this.sprite.setTexture('mb1_cast4');
-    });
+    _applyFrame('mb1_cast1');
+
+    scene.time.delayedCall(350,  () => _applyFrame('mb1_cast2'));
+    scene.time.delayedCall(650,  () => _applyFrame('mb1_cast3'));
+    scene.time.delayedCall(900,  () => _applyFrame('mb1_cast4'));
+
     // 마법진 종료(약 6300ms) 후 이동 재개 + 방향 애니메이션 복원
     scene.time.delayedCall(6300, () => {
       if (!this.alive) return;
       this._isCasting  = false;
       this._animFrame  = 0;
       this._animTimer  = 0;
-      if (this.sprite?.active) this.sprite.setScale(this._baseScale);
+      if (this.sprite?.active) {
+        this.sprite.setScale(this._baseScale).setDepth(3);
+        this.sprite.body.setSize(bs, bs);
+      }
     });
 
     // 마법진 오브젝트들을 한 번에 관리
