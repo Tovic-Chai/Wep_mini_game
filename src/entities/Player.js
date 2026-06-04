@@ -2,6 +2,11 @@ import Skill from './Skill.js';
 import FireballWeapon from './weapons/FireballWeapon.js';
 import LightningWeapon from './weapons/LightningWeapon.js';
 import OrbitWeapon from './weapons/OrbitWeapon.js';
+import PoisonWeapon from './weapons/PoisonWeapon.js';
+import IceWeapon from './weapons/IceWeapon.js';
+import LaserWeapon from './weapons/LaserWeapon.js';
+import BladeWeapon from './weapons/BladeWeapon.js';
+import DroneWeapon from './weapons/DroneWeapon.js';
 
 // ── 플레이어 표시 크기 (이미지 실제 크기와 무관하게 고정) ──
 export const PLAYER_DISPLAY_SIZE = 68;
@@ -288,6 +293,11 @@ export default class Player {
       if (type === 'fireball') w = new FireballWeapon(this.scene, this);
       if (type === 'lightning') w = new LightningWeapon(this.scene, this);
       if (type === 'orbit') w = new OrbitWeapon(this.scene, this);
+      if (type === 'poison') w = new PoisonWeapon(this.scene, this);
+      if (type === 'ice') w = new IceWeapon(this.scene, this);
+      if (type === 'laser') w = new LaserWeapon(this.scene, this);
+      if (type === 'blade') w = new BladeWeapon(this.scene, this);
+      if (type === 'drone') w = new DroneWeapon(this.scene, this);
       if (w) this.passiveWeapons.push(w);
     }
   }

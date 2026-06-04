@@ -30,9 +30,14 @@ export default class UI {
     // ── 패시브 무기 HUD (우측 하단) ──
     this.passiveIcons = {};
     const passiveTypes = [
-      { key: 'fireball', label: '🔥', color: '#ff6600', x: 920 },
-      { key: 'lightning', label: '⚡', color: '#aaddff', x: 895 },
-      { key: 'orbit', label: '🌀', color: '#00aaff', x: 870 }
+      { key: 'fireball', label: '🔥', color: '#ff6600' },
+      { key: 'lightning', label: '⚡', color: '#aaddff' },
+      { key: 'orbit', label: '🌀', color: '#00aaff' },
+      { key: 'poison', label: '☠️', color: '#66ff99' },
+      { key: 'ice', label: '❄️', color: '#99ddff' },
+      { key: 'laser', label: '🔷', color: '#66ddff' },
+      { key: 'blade', label: '🗡️', color: '#ccf6ff' },
+      { key: 'drone', label: '🤖', color: '#ffdd66' }
     ];
     passiveTypes.forEach(({ key, label, color, x }, i) => {
       const icon = s.add.text(920 - i * 34, 612, label, {

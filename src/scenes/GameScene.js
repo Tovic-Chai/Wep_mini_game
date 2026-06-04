@@ -377,7 +377,12 @@ export default class GameScene extends Phaser.Scene {
       if (
         cardDef.includes('fireball') ||
         cardDef.includes('lightning') ||
-        cardDef.includes('orbit')
+        cardDef.includes('orbit') ||
+        cardDef.includes('poison') ||
+        cardDef.includes('ice') ||
+        cardDef.includes('laser') ||
+        cardDef.includes('blade') ||
+        cardDef.includes('drone')
       ) {
         let targetLevel = 1;
 
@@ -917,7 +922,7 @@ export default class GameScene extends Phaser.Scene {
     if (p.bulletCount < 3) pool.push('multishot');
 
     // 패시브 무기
-    for (const wType of ['fireball', 'lightning', 'orbit']) {
+    for (const wType of ['fireball', 'lightning', 'orbit', 'poison', 'ice', 'laser', 'blade', 'drone']) {
       const w = p.getPassiveWeapon(wType);
       if (!w) {
         pool.push(`${wType}_unlock`);
@@ -1036,6 +1041,96 @@ export default class GameScene extends Phaser.Scene {
           label: `🌀 회전 오브\nLv${lv}→${lv + 1}`,
           iconColor: 0x4488ff,
           applyFn: () => { p.addOrUpgradePassiveWeapon('orbit'); }
+        };
+      }
+      case 'poison_unlock': {
+        return {
+          label: `☠️ 독 장판\n획득!`,
+          iconColor: 0x22cc66,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('poison'); }
+        };
+      }
+
+      case 'poison_upgrade': {
+        const w = p.getPassiveWeapon('poison');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `☠️ 독 장판\nLv${lv}→${lv + 1}`,
+          iconColor: 0x66ff99,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('poison'); }
+        };
+      }
+      case 'ice_unlock': {
+        return {
+          label: `❄️ 얼음 파편\n획득!`,
+          iconColor: 0x99ddff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('ice'); }
+        };
+      }
+
+      case 'ice_upgrade': {
+        const w = p.getPassiveWeapon('ice');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `❄️ 얼음 파편\nLv${lv}→${lv + 1}`,
+          iconColor: 0x66ccff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('ice'); }
+        };
+      }
+      case 'laser_unlock': {
+        return {
+          label: `🔷 레이저\n획득!`,
+          iconColor: 0x33ccff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('laser'); }
+        };
+      }
+
+      case 'laser_upgrade': {
+        const w = p.getPassiveWeapon('laser');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `🔷 레이저\nLv${lv}→${lv + 1}`,
+          iconColor: 0x66ddff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('laser'); }
+        };
+      }
+      case 'blade_unlock': {
+        return {
+          label: `🗡️ 검기\n획득!`,
+          iconColor: 0x99eeff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('blade'); }
+        };
+      }
+
+      case 'blade_upgrade': {
+        const w = p.getPassiveWeapon('blade');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `🗡️ 검기\nLv${lv}→${lv + 1}`,
+          iconColor: 0xccf6ff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('blade'); }
+        };
+      }
+      case 'drone_unlock': {
+        return {
+          label: `🤖 드론\n획득!`,
+          iconColor: 0xffdd66,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('drone'); }
+        };
+      }
+
+      case 'drone_upgrade': {
+        const w = p.getPassiveWeapon('drone');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `🤖 드론\nLv${lv}→${lv + 1}`,
+          iconColor: 0xffee88,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('drone'); }
         };
       }
       default:
