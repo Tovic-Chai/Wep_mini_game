@@ -88,7 +88,7 @@ export default class IceWeapon extends PassiveWeapon {
     const sprite = scene.physics.add.image(x, y, 'ice_shard');
 
     sprite.setDepth(9);
-    sprite.setScale(1.25);
+    sprite.setScale(1.4);
     sprite.rotation = angle;
 
     sprite.body.setVelocity(
@@ -224,16 +224,50 @@ export default class IceWeapon extends PassiveWeapon {
 
     if (scene.textures.exists('ice_shard')) return;
 
-    const g = scene.add.graphics();
+    const tex = scene.textures.createCanvas('ice_shard', 32, 32);
+    const ctx = tex.getContext();
 
-    g.fillStyle(0x99ddff, 1);
-    g.fillCircle(8, 8, 7);
+    ctx.clearRect(0, 0, 32, 32);
 
-    g.lineStyle(2, 0xffffff, 1);
-    g.strokeCircle(8, 8, 7);
+    ctx.shadowColor = 'rgba(180, 240, 255, 0.9)';
+    ctx.shadowBlur = 10;
 
-    g.generateTexture('ice_shard', 16, 16);
-    g.destroy();
+    // 얼음 조각 외곽
+    ctx.fillStyle = 'rgba(120, 220, 255, 0.95)';
+    ctx.beginPath();
+    ctx.moveTo(16, 2);
+    ctx.lineTo(27, 10);
+    ctx.lineTo(23, 28);
+    ctx.lineTo(9, 28);
+    ctx.lineTo(5, 10);
+    ctx.closePath();
+    ctx.fill();
+
+    // 내부 밝은 면
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(16, 5);
+    ctx.lineTo(23, 11);
+    ctx.lineTo(20, 24);
+    ctx.lineTo(12, 24);
+    ctx.lineTo(9, 11);
+    ctx.closePath();
+    ctx.fill();
+
+    // 결정선
+    ctx.strokeStyle = 'rgba(170, 245, 255, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(16, 5);
+    ctx.lineTo(16, 24);
+    ctx.moveTo(12, 12);
+    ctx.lineTo(20, 12);
+    ctx.moveTo(11, 18);
+    ctx.lineTo(21, 18);
+    ctx.stroke();
+
+    tex.refresh();
   }
 
   destroy() {

@@ -226,53 +226,55 @@ export default class BladeWeapon extends PassiveWeapon {
 
     if (scene.textures.exists('blade_crescent')) return;
 
-    const tex = scene.textures.createCanvas('blade_crescent', 96, 64);
+    const tex = scene.textures.createCanvas('blade_crescent', 108, 72);
     const ctx = tex.getContext();
 
-    ctx.clearRect(0, 0, 96, 64);
-
-    // 반원형 검기
-    // 지름선 없이 곡선 부분만 그림
-    const gradient = ctx.createLinearGradient(20, 0, 86, 64);
-    gradient.addColorStop(0, 'rgba(80, 210, 255, 0.25)');
-    gradient.addColorStop(0.45, 'rgba(150, 240, 255, 0.95)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 1)');
-
+    ctx.clearRect(0, 0, 108, 72);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // 바깥 빛
-    ctx.shadowColor = 'rgba(120, 230, 255, 0.9)';
-    ctx.shadowBlur = 14;
+    // 외곽 광채
+    ctx.shadowColor = 'rgba(120, 235, 255, 0.95)';
+    ctx.shadowBlur = 18;
 
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 17;
+    // 메인 반원 빛
+    const grad = ctx.createLinearGradient(18, 0, 100, 72);
+    grad.addColorStop(0.00, 'rgba(70, 210, 255, 0.18)');
+    grad.addColorStop(0.35, 'rgba(120, 235, 255, 0.88)');
+    grad.addColorStop(0.72, 'rgba(230, 255, 255, 1)');
+    grad.addColorStop(1.00, 'rgba(255, 255, 255, 1)');
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 20;
     ctx.beginPath();
-
-    // 오른쪽을 향한 반원 모양
-    // -90도에서 90도까지만 그리기 때문에 지름선이 없음
-    ctx.arc(38, 32, 29, -Math.PI / 2, Math.PI / 2, false);
+    ctx.arc(42, 36, 31, -Math.PI / 2, Math.PI / 2, false);
     ctx.stroke();
 
-    // 안쪽 밝은 선
-    ctx.shadowBlur = 4;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.lineWidth = 6;
+    // 내부 밝은 코어
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+    ctx.lineWidth = 7;
     ctx.beginPath();
-    ctx.arc(38, 32, 29, -Math.PI / 2, Math.PI / 2, false);
+    ctx.arc(42, 36, 31, -Math.PI / 2, Math.PI / 2, false);
     ctx.stroke();
 
-    // 바깥 파란 테두리
+    // 바깥 가장자리 라인
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(80, 200, 255, 0.75)';
+    ctx.strokeStyle = 'rgba(90, 200, 255, 0.75)';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(38, 32, 36, -Math.PI / 2, Math.PI / 2, false);
+    ctx.arc(42, 36, 39, -Math.PI / 2, Math.PI / 2, false);
     ctx.stroke();
+
+    // 끝부분 강조
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.beginPath();
+    ctx.ellipse(73, 36, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     tex.refresh();
   }
-  
+
   destroy() {
     this.blades.forEach(blade => this._destroyBlade(blade));
     this.blades = [];

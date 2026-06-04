@@ -11,12 +11,12 @@ export default class Boss extends Phaser.Events.EventEmitter {
       final: 'boss_final_phase1'
     };
     const scaleMap = {
-      mini1: 0.2, mini2: 0.3, mini3: 0.26, final: 0.4
+      mini1: 0.2, mini2: 0.38, mini3: 0.2, final: 0.4
     };
 
     this.sprite = scene.physics.add.sprite(x, y, keyMap[kind] || 'boss_mini1')
       .setDepth(3)
-      .setScale(scaleMap[kind] || 0.3);
+      .setScale(scaleMap[kind] || 0.2);
     this.sprite.parentRef = this;
 
     this.alive = true;

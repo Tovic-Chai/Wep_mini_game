@@ -3,35 +3,39 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     // ── 보스 이미지 ──
-    this.load.image('player',            'assets/images/player1.png');
-    this.load.image('boss_mini1',        'assets/images/mini_boss_1.png');
-    this.load.image('boss_mini2',        'assets/images/mini_boss_2.png');
-    this.load.image('boss_mini3',        'assets/images/mini_boss_3.png');
+    this.load.image('player', 'assets/images/player1.png');
+    this.load.image('boss_mini1', 'assets/images/mini_boss_1.png');
+    this.load.image('boss_mini2', 'assets/images/mini_boss_2.png');
+    this.load.image('boss_mini3', 'assets/images/mini_boss_3.png');
     this.load.image('boss_final_phase1', 'assets/images/boss_phase_1.png');
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
 
     // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
     // 아래 방향 (후면 = 카메라 향해 걷기)
-    this.load.image('player_down_idle', 'assets/images/후면_서있기.png');
-    this.load.image('player_down_r1',   'assets/images/후면_오른발앞_걷기.png');
-    this.load.image('player_down_r2',   'assets/images/후면_오른발앞_달리기.png');
-    this.load.image('player_down_l1',   'assets/images/후면_왼발앞_걷기.png');
-    this.load.image('player_down_l2',   'assets/images/후면_왼발앞_달리기.png');
+    this.load.image('player_down_idle', 'assets/images/player_down_idle.png');
+    this.load.image('player_down_r1', 'assets/images/player_down_r1.png');
+    this.load.image('player_down_r2', 'assets/images/player_down_r2.png');
+    this.load.image('player_down_l1', 'assets/images/player_down_l1.png');
+    this.load.image('player_down_l2', 'assets/images/player_down_l2.png');
     // 위 방향 (정면 = 카메라 등지고 걷기)
-    this.load.image('player_up_idle',   'assets/images/정면_서있기.png');
-    this.load.image('player_up_r1',     'assets/images/정면_오른발_앞으로.png');
-    this.load.image('player_up_r2',     'assets/images/정면_오른발_많이_앞으로.png');
-    this.load.image('player_up_l1',     'assets/images/정면_왼발_앞으로.png');
-    this.load.image('player_up_l2',     'assets/images/정면_왼발_많이_앞으로.png');
+    this.load.image('player_up_idle', 'assets/images/player_up_idle.png');
+    this.load.image('player_up_r1', 'assets/images/player_up_r1.png');
+    this.load.image('player_up_r2', 'assets/images/player_up_r2.png');
+    this.load.image('player_up_l1', 'assets/images/player_up_l1.png');
+    this.load.image('player_up_l2', 'assets/images/player_up_l2.png');
     // 좌우 방향 (측면, 왼쪽은 flipX로 처리)
-    this.load.image('player_side_idle', 'assets/images/오른쪽으로_걷기_서있는_상태.png');
-    this.load.image('player_side_r1',   'assets/images/오른쪽으로_걷기_작게.png');
-    this.load.image('player_side_r2',   'assets/images/오른쪽으로_걷기_크게.png');
+    this.load.image('player_side_idle', 'assets/images/player_side_idle.png');
+    this.load.image('player_side_r1', 'assets/images/player_side_r1.png');
+    this.load.image('player_side_r2', 'assets/images/player_side_r2.png');
 
     // 자산 로드 실패해도 게임이 죽지 않도록
     this.load.on('loaderror', (file) => {
       console.warn('자산 로드 실패 (무시):', file.src);
+    });
+
+    this.load.on('loaderror', (file) => {
+      console.error('이미지 로드 실패:', file.key, file.src);
     });
   }
 
@@ -145,9 +149,9 @@ export default class BootScene extends Phaser.Scene {
     g.destroy();
 
     // ── 10) 배경 3중 (별 밀도 다르게) ──
-    this.makeStarTexture('bg_space_far',  960, 640, 200, 1, true);
-    this.makeStarTexture('bg_space_mid',  960, 640,  60, 2, false);
-    this.makeStarTexture('bg_space_near', 960, 640,  25, 3, false);
+    this.makeStarTexture('bg_space_far', 960, 640, 200, 1, true);
+    this.makeStarTexture('bg_space_mid', 960, 640, 60, 2, false);
+    this.makeStarTexture('bg_space_near', 960, 640, 25, 3, false);
   }
 
   makeStarTexture(key, w, h, count, radius, opaque) {
@@ -157,8 +161,8 @@ export default class BootScene extends Phaser.Scene {
       g.fillRect(0, 0, w, h);
     }
     for (let i = 0; i < count; i++) {
-      const x     = Phaser.Math.Between(0, w);
-      const y     = Phaser.Math.Between(0, h);
+      const x = Phaser.Math.Between(0, w);
+      const y = Phaser.Math.Between(0, h);
       const alpha = Phaser.Math.FloatBetween(0.4, 1);
       g.fillStyle(0xffffff, alpha);
       g.fillCircle(x, y, radius);

@@ -120,6 +120,23 @@ export default class Enemy {
     this.dashCooldown = 2.2;
     this.dashTimer = Phaser.Math.FloatBetween(0.3, 1.5);
     this.dashDuration = 0;
+
+    // 돌진 전 경고 시간
+    this.dashTelegraph = 0;
+
+    // 실제 돌진할 방향을 미리 저장
+    this.dashAngle = 0;
+
+    // 경고 선 길이
+    this.dashDistance = 220;
+
+    // 경고 이펙트
+    this.dashGuide = null;
+
+    if (this.type === 'M05') {
+      this.dashGuide = scene.add.graphics().setDepth(2);
+    }
+
   }
 
   update(dt) {
@@ -196,31 +213,100 @@ export default class Enemy {
   }
 
   updateDash(dt, angle) {
-    this.dashTimer -= dt;
-
-    // 돌진 중
+    // 이미 돌진 중이면 저장된 방향으로 직진
     if (this.dashDuration > 0) {
       this.dashDuration -= dt;
 
       const dashSpeed = 280 * this.slowMultiplier;
 
       this.sprite.setVelocity(
-        Math.cos(angle) * dashSpeed,
-        Math.sin(angle) * dashSpeed
+        Math.cos(this.dashAngle) * dashSpeed,
+        Math.sin(this.dashAngle) * dashSpeed
       );
 
+      this._drawDashWarning(this.dashAngle, true);
+
+      if (this.dashDuration <= 0) {
+        this._clearDashWarning();
+      }
+
       return;
     }
 
-    // 돌진 시작
+    // 돌진 전 경고 시간
+    if (this.dashTelegraph > 0) {
+      this.dashTelegraph -= dt;
+
+      // 경고 중에는 잠깐 멈춤
+      this.sprite.setVelocity(0, 0);
+
+      this._drawDashWarning(this.dashAngle, false);
+
+      if (this.dashTelegraph <= 0) {
+        this.dashDuration = 0.35;
+        this._clearDashWarning();
+      }
+
+      return;
+    }
+
+    this.dashTimer -= dt;
+
+    // 돌진 시작 전: 방향 고정 + 경고 시작
     if (this.dashTimer <= 0) {
       this.dashTimer = this.dashCooldown;
-      this.dashDuration = 0.35;
+      this.dashAngle = angle;
+      this.dashTelegraph = 0.55;
       return;
     }
 
-    // 평소에는 천천히 추적
+    // 평소에는 추적
     this.moveToPlayer(angle, this.speed);
+  }
+
+  _drawDashWarning(angle, isDashing = false) {
+    if (!this.dashGuide) return;
+    if (!this.sprite || !this.sprite.active) return;
+
+    const g = this.dashGuide;
+    g.clear();
+
+    const startX = this.sprite.x;
+    const startY = this.sprite.y;
+    const endX = startX + Math.cos(angle) * this.dashDistance;
+    const endY = startY + Math.sin(angle) * this.dashDistance;
+
+    // 돌진 중이면 더 진한 빨강
+    const alpha = isDashing ? 0.35 : 0.75;
+    const lineWidth = isDashing ? 10 : 7;
+
+    // 경고 바닥선
+    g.lineStyle(lineWidth, 0xff3333, alpha);
+    g.beginPath();
+    g.moveTo(startX, startY);
+    g.lineTo(endX, endY);
+    g.strokePath();
+
+    // 중심 밝은 선
+    g.lineStyle(2, 0xffffff, isDashing ? 0.45 : 0.8);
+    g.beginPath();
+    g.moveTo(startX, startY);
+    g.lineTo(endX, endY);
+    g.strokePath();
+
+    // 끝 지점 경고 원
+    g.lineStyle(3, 0xff6666, alpha);
+    g.strokeCircle(endX, endY, 16);
+
+    // 몬스터 아래 경고 원
+    g.lineStyle(2, 0xff0000, alpha);
+    g.strokeCircle(startX, startY, 20);
+  }
+
+  _clearDashWarning() {
+    if (this.dashGuide) {
+      this.dashGuide.clear();
+    }
   }
 
   updateKeepDistance(angle, dist) {
@@ -288,6 +374,12 @@ export default class Enemy {
 
     this.alive = false;
 
+    this._clearDashWarning();
+    if (this.dashGuide) {
+      this.dashGuide.destroy();
+      this.dashGuide = null;
+    }
+
     // 폭발 파티클
     const emitter = this.scene.add.particles(
       this.sprite.x,
@@ -342,6 +434,13 @@ export default class Enemy {
   }
 
   destroy() {
+    this._clearDashWarning();
+
+    if (this.dashGuide) {
+      this.dashGuide.destroy();
+      this.dashGuide = null;
+    }
+
     if (this.sprite && this.sprite.active) {
       this.sprite.destroy();
     }

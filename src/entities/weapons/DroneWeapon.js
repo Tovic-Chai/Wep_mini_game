@@ -2,7 +2,7 @@ import PassiveWeapon from './PassiveWeapon.js';
 
 /**
  * 자동 공격 드론 무기
- * 플레이어 주변을 따라다니며 가까운 적에게 총알을 자동 발사한다.
+ * 플레이어 주변 근처에서 자유롭게 돌아다니며 가까운 적에게 총알을 자동 발사한다.
  */
 export default class DroneWeapon extends PassiveWeapon {
   constructor(scene, player) {
@@ -19,11 +19,11 @@ export default class DroneWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,
-      { damage: 12, count: 1, cooldown: 0.85, bulletSpeed: 430, range: 520, wanderRadius: 120, droneSpeed: 130 }, // Lv1
-      { damage: 18, count: 1, cooldown: 0.70, bulletSpeed: 470, range: 580, wanderRadius: 135, droneSpeed: 145 }, // Lv2
-      { damage: 24, count: 2, cooldown: 0.65, bulletSpeed: 510, range: 640, wanderRadius: 150, droneSpeed: 160 }, // Lv3
-      { damage: 34, count: 2, cooldown: 0.52, bulletSpeed: 560, range: 700, wanderRadius: 165, droneSpeed: 175 }, // Lv4
-      { damage: 48, count: 3, cooldown: 0.42, bulletSpeed: 620, range: 780, wanderRadius: 185, droneSpeed: 195 }, // Lv5
+      { damage: 12, count: 1, cooldown: 0.85, bulletSpeed: 430, range: 520, wanderRadius: 120, droneSpeed: 130 },
+      { damage: 18, count: 1, cooldown: 0.70, bulletSpeed: 470, range: 580, wanderRadius: 135, droneSpeed: 145 },
+      { damage: 24, count: 2, cooldown: 0.65, bulletSpeed: 510, range: 640, wanderRadius: 150, droneSpeed: 160 },
+      { damage: 34, count: 2, cooldown: 0.52, bulletSpeed: 560, range: 700, wanderRadius: 165, droneSpeed: 175 },
+      { damage: 48, count: 3, cooldown: 0.42, bulletSpeed: 620, range: 780, wanderRadius: 185, droneSpeed: 195 },
     ];
 
     const s = STATS[this.level];
@@ -33,11 +33,7 @@ export default class DroneWeapon extends PassiveWeapon {
     this.cooldown = s.cooldown;
     this.bulletSpeed = s.bulletSpeed;
     this.range = s.range;
-
-    // 드론이 플레이어 주변에서 자유롭게 움직이는 범위
     this.wanderRadius = s.wanderRadius;
-
-    // 드론 이동 속도
     this.droneSpeed = s.droneSpeed;
 
     if (this.drones) {
@@ -76,12 +72,7 @@ export default class DroneWeapon extends PassiveWeapon {
     while (this.drones.length < this.droneCount) {
       const pos = this._pickNewTarget();
 
-      const sprite = this.scene.add.image(
-        pos.x,
-        pos.y,
-        'drone_core'
-      );
-
+      const sprite = this.scene.add.image(pos.x, pos.y, 'drone_core');
       sprite.setDepth(13);
       sprite.setScale(1);
 
@@ -108,6 +99,12 @@ export default class DroneWeapon extends PassiveWeapon {
     this.drones.forEach(drone => {
       if (!drone.sprite || !drone.sprite.active) return;
 
+      if (drone.targetX === undefined || drone.targetY === undefined) {
+        const pos = this._pickNewTarget();
+        drone.targetX = pos.x;
+        drone.targetY = pos.y;
+      }
+
       const distToPlayer = Phaser.Math.Distance.Between(
         drone.sprite.x,
         drone.sprite.y,
@@ -122,7 +119,7 @@ export default class DroneWeapon extends PassiveWeapon {
         drone.targetY
       );
 
-      // 너무 멀어지면 강제로 플레이어 근처 목표로 변경
+      // 플레이어에게서 너무 멀어지면 다시 플레이어 근처로 이동
       if (distToPlayer > this.wanderRadius + 90) {
         const pos = this._pickNewTarget();
         drone.targetX = pos.x;
@@ -130,7 +127,7 @@ export default class DroneWeapon extends PassiveWeapon {
         drone.wait = 0;
       }
 
-      // 목표에 도착하면 잠깐 멈췄다가 새 위치로 이동
+      // 목표 지점 도착
       if (distToTarget < 12) {
         drone.wait -= dt;
 
@@ -157,37 +154,9 @@ export default class DroneWeapon extends PassiveWeapon {
       drone.sprite.x = clamped.x;
       drone.sprite.y = clamped.y;
 
-      // 회전 오브처럼 도는 게 아니라, 살짝 흔들리는 느낌만 줌
+      // 자유 비행 느낌만 주는 살짝 흔들림
       drone.sprite.rotation = Math.sin(this.scene.time.now / 180) * 0.15;
     });
-  }
-  _pickNewTarget() {
-    const player = this.player.sprite;
-
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const dist = Phaser.Math.FloatBetween(35, this.wanderRadius);
-
-    let x = player.x + Math.cos(angle) * dist;
-    let y = player.y + Math.sin(angle) * dist;
-
-    return this._clampToWorld(x, y);
-  }
-
-  _clampToWorld(x, y) {
-    const world = this.scene.physics.world.bounds;
-
-    // 맵 경계에서 살짝 안쪽으로 제한
-    const margin = 30;
-
-    const minX = world.x + margin;
-    const maxX = world.x + world.width - margin;
-    const minY = world.y + margin;
-    const maxY = world.y + world.height - margin;
-
-    return {
-      x: Phaser.Math.Clamp(x, minX, maxX),
-      y: Phaser.Math.Clamp(y, minY, maxY)
-    };
   }
 
   _shootBullet(x, y, target) {
@@ -201,7 +170,7 @@ export default class DroneWeapon extends PassiveWeapon {
     const bullet = this.scene.physics.add.image(x, y, 'drone_bullet');
 
     bullet.setDepth(12);
-    bullet.setScale(1.2);
+    bullet.setScale(1.1);
     bullet.rotation = angle;
 
     bullet.body.setVelocity(
@@ -210,7 +179,7 @@ export default class DroneWeapon extends PassiveWeapon {
     );
 
     if (bullet.body.setCircle) {
-      bullet.body.setCircle(5);
+      bullet.body.setCircle(6);
     }
 
     this.bullets.push({
@@ -293,6 +262,33 @@ export default class DroneWeapon extends PassiveWeapon {
     return best;
   }
 
+  _pickNewTarget() {
+    const player = this.player.sprite;
+
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const dist = Phaser.Math.FloatBetween(35, this.wanderRadius);
+
+    const x = player.x + Math.cos(angle) * dist;
+    const y = player.y + Math.sin(angle) * dist;
+
+    return this._clampToWorld(x, y);
+  }
+
+  _clampToWorld(x, y) {
+    const world = this.scene.physics.world.bounds;
+    const margin = 30;
+
+    const minX = world.x + margin;
+    const maxX = world.x + world.width - margin;
+    const minY = world.y + margin;
+    const maxY = world.y + world.height - margin;
+
+    return {
+      x: Phaser.Math.Clamp(x, minX, maxX),
+      y: Phaser.Math.Clamp(y, minY, maxY)
+    };
+  }
+
   _hitEffect(x, y) {
     const scene = this.scene;
 
@@ -318,32 +314,75 @@ export default class DroneWeapon extends PassiveWeapon {
     const scene = this.scene;
 
     if (!scene.textures.exists('drone_core')) {
-      const g = scene.add.graphics();
+      const tex = scene.textures.createCanvas('drone_core', 34, 34);
+      const ctx = tex.getContext();
 
-      g.fillStyle(0x222222, 1);
-      g.fillCircle(12, 12, 11);
+      ctx.clearRect(0, 0, 34, 34);
 
-      g.fillStyle(0xffdd66, 1);
-      g.fillCircle(12, 12, 6);
+      // 좌우 날개
+      ctx.fillStyle = '#34384a';
+      ctx.fillRect(3, 13, 8, 8);
+      ctx.fillRect(23, 13, 8, 8);
 
-      g.lineStyle(2, 0xffffff, 0.9);
-      g.strokeCircle(12, 12, 10);
+      // 바깥 원형 몸체
+      ctx.fillStyle = '#1e1e28';
+      ctx.beginPath();
+      ctx.arc(17, 17, 13, 0, Math.PI * 2);
+      ctx.fill();
 
-      g.generateTexture('drone_core', 24, 24);
-      g.destroy();
+      // 외곽 링
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(17, 17, 12, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 중앙 코어 glow
+      const glow = ctx.createRadialGradient(17, 17, 2, 17, 17, 8);
+      glow.addColorStop(0, 'rgba(255,255,255,1)');
+      glow.addColorStop(0.45, 'rgba(255,230,120,1)');
+      glow.addColorStop(1, 'rgba(255,200,70,0.2)');
+
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(17, 17, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 중앙 핵
+      ctx.fillStyle = '#ffd95a';
+      ctx.beginPath();
+      ctx.arc(17, 17, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      tex.refresh();
     }
 
     if (!scene.textures.exists('drone_bullet')) {
-      const g = scene.add.graphics();
+      const tex = scene.textures.createCanvas('drone_bullet', 18, 18);
+      const ctx = tex.getContext();
 
-      g.fillStyle(0xffee88, 1);
-      g.fillCircle(6, 6, 5);
+      ctx.clearRect(0, 0, 18, 18);
 
-      g.lineStyle(1, 0xffffff, 1);
-      g.strokeCircle(6, 6, 5);
+      ctx.shadowColor = 'rgba(255,230,120,0.95)';
+      ctx.shadowBlur = 8;
 
-      g.generateTexture('drone_bullet', 12, 12);
-      g.destroy();
+      const grad = ctx.createRadialGradient(9, 9, 1, 9, 9, 8);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.5, 'rgba(255,235,120,1)');
+      grad.addColorStop(1, 'rgba(255,180,60,0.3)');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(9, 9, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(9, 9, 5.5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      tex.refresh();
     }
   }
 
