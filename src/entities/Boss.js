@@ -587,8 +587,22 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     if (!player || !player.sprite || !player.sprite.active || !player.sprite.body) return;
 
-    const x = player.sprite.x + Phaser.Math.Between(-120, 120);
-    const y = player.sprite.y + Phaser.Math.Between(-90, 90);
+    let x;
+    let y;
+
+    // 미니보스2는 블랙홀이 미니보스 근처에 생성
+    if (this.kind === 'mini2') {
+      const pos = this.getBlackholePositionNearBoss();
+      x = pos.x;
+      y = pos.y;
+    }
+
+    // 파이널 보스는 기존처럼 플레이어 근처에 생성
+    else {
+      x = player.sprite.x + Phaser.Math.Between(-120, 120);
+      y = player.sprite.y + Phaser.Math.Between(-90, 90);
+    }
+
     const radius = this.kind === 'final' ? 150 : 120;
 
     const hole = scene.add.circle(x, y, 20, 0x050010, 0.85)
@@ -648,6 +662,27 @@ export default class Boss extends Phaser.Events.EventEmitter {
         }
       });
     });
+  }
+
+  getBlackholePositionNearBoss() {
+    const boss = this.sprite;
+
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+
+    // 미니보스 근처 거리
+    const distance = Phaser.Math.FloatBetween(90, 180);
+
+    let x = boss.x + Math.cos(angle) * distance;
+    let y = boss.y + Math.sin(angle) * distance;
+
+    // 맵 밖으로 나가지 않게 제한
+    const world = this.scene.physics.world.bounds;
+    const margin = 80;
+
+    x = Phaser.Math.Clamp(x, world.x + margin, world.x + world.width - margin);
+    y = Phaser.Math.Clamp(y, world.y + margin, world.y + world.height - margin);
+
+    return { x, y };
   }
 
   // ──────────────────────────────────────────

@@ -346,7 +346,7 @@ export default class Player {
 
   levelUp() {
     this.level++;
-    this.expToNext = Math.floor(this.expToNext * 1.35);
+    this.expToNext = Math.floor(this.expToNext * 1.28);
     this.scene.showLevelUpCards();
     this.scene.cameras.main.flash(200, 100, 255, 100);
 

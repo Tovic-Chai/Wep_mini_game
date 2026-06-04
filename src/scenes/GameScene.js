@@ -26,6 +26,17 @@ export default class GameScene extends Phaser.Scene {
     this.enemyManager = new EnemyManager(this);
     this.ui = new UI(this, this.player);
 
+    // ESC 일시정지
+    this.isGamePaused = false;
+    this.pauseObjects = [];
+
+    // 트레일러 / 타이틀 화면 씬 이름
+    this.returnSceneKey = 'TitleScene';
+
+    this.input.keyboard.on('keydown-ESC', () => {
+      this.togglePause();
+    });
+
     // ── 카메라 ──
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     this.cameras.main.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
@@ -155,6 +166,7 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (this.isGameOver) return;
     if (this.isLeveling) return;
+    if (this.isGamePaused) return;
 
     const dt = delta / 1000;
     this.gameTime += dt;
@@ -1150,5 +1162,276 @@ export default class GameScene extends Phaser.Scene {
       if (roll <= current) return r;
     }
     return rarities[0];
+  }
+
+  togglePause() {
+    if (this.isGamePaused) {
+      this.resumeGame();
+    } else {
+      this.pauseGame();
+    }
+  }
+
+  pauseGame() {
+    if (this.isGamePaused) return;
+
+    this.isGamePaused = true;
+
+    // 물리 멈춤
+    this.physics.world.pause();
+
+    // 현재 움직임 멈춤
+    if (this.player && this.player.sprite && this.player.sprite.body) {
+      this.player.sprite.body.setVelocity(0, 0);
+    }
+
+    // 애니메이션 / 트윈 멈춤
+    if (this.anims) this.anims.pauseAll();
+    if (this.tweens) this.tweens.pauseAll();
+
+    // 타이머 멈춤
+    if (this.time) this.time.paused = true;
+
+    this.showPauseOverlay();
+  }
+
+  resumeGame() {
+    if (!this.isGamePaused) return;
+
+    this.isGamePaused = false;
+
+    this.hidePauseOverlay();
+
+    // 타이머 재개
+    if (this.time) this.time.paused = false;
+
+    // 트윈 / 애니메이션 재개
+    if (this.tweens) this.tweens.resumeAll();
+    if (this.anims) this.anims.resumeAll();
+
+    // 물리 재개
+    this.physics.world.resume();
+  }
+
+  showPauseOverlay() {
+    this.hidePauseOverlay();
+
+    const cam = this.cameras.main;
+    const W = cam.width;
+    const H = cam.height;
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // 어두운 배경
+    const bg = this.add.rectangle(cx, cy, W, H, 0x000000, 0.72)
+      .setDepth(1000)
+      .setScrollFactor(0);
+
+    // 바깥 글로우 패널
+    const glowPanel = this.add.rectangle(cx, cy, 500, 360, 0x0ea5e9, 0.16)
+      .setDepth(1001)
+      .setScrollFactor(0);
+
+    glowPanel.setStrokeStyle(4, 0x38bdf8, 0.45);
+
+    // 메인 패널
+    const panel = this.add.rectangle(cx, cy, 460, 320, 0x0f172a, 0.97)
+      .setDepth(1002)
+      .setScrollFactor(0);
+
+    panel.setStrokeStyle(3, 0x7dd3fc, 0.95);
+
+    // 위쪽 장식 라인
+    const topLine = this.add.rectangle(cx, cy - 142, 360, 3, 0x38bdf8, 0.9)
+      .setDepth(1003)
+      .setScrollFactor(0);
+
+    // 아래쪽 장식 라인
+    const bottomLine = this.add.rectangle(cx, cy + 142, 360, 3, 0x38bdf8, 0.45)
+      .setDepth(1003)
+      .setScrollFactor(0);
+
+    // 좌우 작은 장식
+    const leftDot = this.add.circle(cx - 210, cy - 142, 7, 0x93c5fd, 0.95)
+      .setDepth(1004)
+      .setScrollFactor(0);
+
+    const rightDot = this.add.circle(cx + 210, cy - 142, 7, 0x93c5fd, 0.95)
+      .setDepth(1004)
+      .setScrollFactor(0);
+
+    // 제목
+    const title = this.add.text(cx, cy - 100, 'PAUSED', {
+      fontSize: '46px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#38bdf8',
+      strokeThickness: 4
+    })
+      .setOrigin(0.5)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    const subTitle = this.add.text(cx, cy - 58, '일시정지', {
+      fontSize: '22px',
+      color: '#bae6fd',
+      fontStyle: 'bold'
+    })
+      .setOrigin(0.5)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    const desc = this.add.text(cx, cy - 25, 'ESC를 다시 누르면 게임을 이어합니다', {
+      fontSize: '17px',
+      color: '#cbd5e1'
+    })
+      .setOrigin(0.5)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    // 조작 안내 박스
+    const infoBox = this.add.rectangle(cx, cy + 20, 340, 42, 0x020617, 0.75)
+      .setDepth(1004)
+      .setScrollFactor(0);
+
+    infoBox.setStrokeStyle(1, 0x334155, 0.9);
+
+    const infoText = this.add.text(cx, cy + 20, '이동: WASD / 스킬: Q E C / 일시정지: ESC', {
+      fontSize: '14px',
+      color: '#94a3b8'
+    })
+      .setOrigin(0.5)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    const resumeBtn = this.createPauseButton(
+      cx,
+      cy + 78,
+      '이어하기',
+      0x2563eb,
+      0x1d4ed8,
+      () => {
+        this.resumeGame();
+      }
+    );
+
+    const trailerBtn = this.createPauseButton(
+      cx,
+      cy + 132,
+      '다시하기',
+      0x7c2d12,
+      0x9a3412,
+      () => {
+        this.goToTrailerScene();
+      }
+    );
+
+    // 은은한 패널 애니메이션
+    this.tweens.add({
+      targets: [glowPanel, leftDot, rightDot],
+      alpha: 0.35,
+      duration: 650,
+      yoyo: true,
+      repeat: -1
+    });
+
+    this.pauseObjects.push(
+      bg,
+      glowPanel,
+      panel,
+      topLine,
+      bottomLine,
+      leftDot,
+      rightDot,
+      title,
+      subTitle,
+      desc,
+      infoBox,
+      infoText,
+      ...resumeBtn,
+      ...trailerBtn
+    );
+  }
+
+  createPauseButton(x, y, label, baseColor, hoverColor, callback) {
+    const shadow = this.add.rectangle(x + 4, y + 5, 250, 46, 0x000000, 0.35)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    const box = this.add.rectangle(x, y, 250, 46, baseColor, 1)
+      .setDepth(1006)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
+
+    box.setStrokeStyle(2, 0xffffff, 0.55);
+
+    const shine = this.add.rectangle(x, y - 13, 220, 5, 0xffffff, 0.18)
+      .setDepth(1007)
+      .setScrollFactor(0);
+
+    const text = this.add.text(x, y, label, {
+      fontSize: '19px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    })
+      .setOrigin(0.5)
+      .setDepth(1008)
+      .setScrollFactor(0);
+
+    const hoverOn = () => {
+      box.setFillStyle(hoverColor, 1);
+      box.setScale(1.04);
+      shadow.setScale(1.04);
+      shine.setScale(1.04, 1);
+    };
+
+    const hoverOff = () => {
+      box.setFillStyle(baseColor, 1);
+      box.setScale(1);
+      shadow.setScale(1);
+      shine.setScale(1);
+    };
+
+    box.on('pointerover', hoverOn);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerover', hoverOn);
+
+    box.on('pointerout', hoverOff);
+    text.on('pointerout', hoverOff);
+
+    box.on('pointerdown', callback);
+    text.on('pointerdown', callback);
+
+    return [shadow, box, shine, text];
+  }
+
+  goToTrailerScene() {
+    // 멈춘 것들 먼저 다시 풀어주기
+    this.isGamePaused = false;
+
+    if (this.time) this.time.paused = false;
+    if (this.tweens) this.tweens.resumeAll();
+    if (this.anims) this.anims.resumeAll();
+    if (this.physics && this.physics.world) this.physics.world.resume();
+
+    this.hidePauseOverlay();
+
+    // 트레일러 / 타이틀 화면으로 이동
+    this.scene.start(this.returnSceneKey || 'TitleScene');
+  }
+
+  hidePauseOverlay() {
+    if (!this.pauseObjects) {
+      this.pauseObjects = [];
+      return;
+    }
+
+    this.pauseObjects.forEach(obj => {
+      if (obj && obj.destroy) {
+        obj.destroy();
+      }
+    });
+
+    this.pauseObjects = [];
   }
 }
