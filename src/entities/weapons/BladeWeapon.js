@@ -57,8 +57,6 @@ export default class BladeWeapon extends PassiveWeapon {
         continue;
       }
 
-      // 검기가 날아가면서 살짝 회전
-      blade.sprite.rotation += blade.spin * dt;
 
       this._checkHits(blade);
     }
@@ -66,28 +64,30 @@ export default class BladeWeapon extends PassiveWeapon {
 
   fire() {
     const me = this.player.sprite;
-    const target = this._findNearestEnemy();
 
-    if (!target) return;
+    const targets = this._findNearestEnemies(this.count);
+    if (targets.length === 0) return;
 
-    const baseAngle = Phaser.Math.Angle.Between(
-      me.x,
-      me.y,
-      target.x,
-      target.y
-    );
+    for (let i = 0; i < this.count; i++) {
+      const target = targets[i % targets.length];
 
-    const angles = this._spreadAngles(this.count);
+      if (!target || !target.active) continue;
 
-    angles.forEach(offset => {
-      this._spawnBlade(me.x, me.y, baseAngle + offset);
-    });
+      const angle = Phaser.Math.Angle.Between(
+        me.x,
+        me.y,
+        target.x,
+        target.y
+      );
+
+      this._spawnBlade(me.x, me.y, angle);
+    }
   }
 
   _spawnBlade(x, y, angle) {
     const scene = this.scene;
 
-    const sprite = scene.physics.add.image(x, y, 'blade_wave');
+    const sprite = scene.physics.add.image(x, y, 'blade_crescent');
 
     sprite.setDepth(12);
     sprite.setScale(this.bladeScale);
@@ -123,7 +123,6 @@ export default class BladeWeapon extends PassiveWeapon {
       hits: new Set(),
       life: 2.2,
       dead: false,
-      spin: 3.5
     });
   }
 
@@ -158,12 +157,11 @@ export default class BladeWeapon extends PassiveWeapon {
     this.scene.enemyManager.bossGroup.children.each(hitOne);
   }
 
-  _findNearestEnemy() {
+  _findNearestEnemies(count) {
     const me = this.player.sprite;
-    let best = null;
-    let bestDist = Infinity;
+    const candidates = [];
 
-    const check = (sprite) => {
+    const collect = (sprite) => {
       if (!sprite || !sprite.active) return;
 
       const d = Phaser.Math.Distance.Between(
@@ -173,23 +171,18 @@ export default class BladeWeapon extends PassiveWeapon {
         sprite.y
       );
 
-      if (d < bestDist) {
-        bestDist = d;
-        best = sprite;
-      }
+      candidates.push({ sprite, d });
     };
 
-    this.scene.enemyManager.group.children.each(check);
-    this.scene.enemyManager.bossGroup.children.each(check);
+    this.scene.enemyManager.group.children.each(collect);
+    this.scene.enemyManager.bossGroup.children.each(collect);
 
-    return best;
+    candidates.sort((a, b) => a.d - b.d);
+
+    return candidates.slice(0, count).map(c => c.sprite);
   }
 
-  _spreadAngles(count) {
-    if (count === 1) return [0];
-    if (count === 2) return [-0.16, 0.16];
-    return [-0.28, 0, 0.28];
-  }
+
 
   _hitEffect(x, y, scale = 1) {
     const scene = this.scene;
@@ -231,39 +224,55 @@ export default class BladeWeapon extends PassiveWeapon {
   _ensureTexture() {
     const scene = this.scene;
 
-    if (scene.textures.exists('blade_wave')) return;
+    if (scene.textures.exists('blade_crescent')) return;
 
-    const g = scene.add.graphics();
+    const tex = scene.textures.createCanvas('blade_crescent', 96, 64);
+    const ctx = tex.getContext();
 
-    // 검기 몸통
-    g.fillStyle(0x99eeff, 0.95);
-    g.beginPath();
-    g.moveTo(4, 18);
-    g.lineTo(44, 4);
-    g.lineTo(76, 18);
-    g.lineTo(44, 32);
-    g.closePath();
-    g.fillPath();
+    ctx.clearRect(0, 0, 96, 64);
 
-    // 안쪽 밝은 부분
-    g.fillStyle(0xffffff, 0.95);
-    g.beginPath();
-    g.moveTo(18, 18);
-    g.lineTo(44, 10);
-    g.lineTo(66, 18);
-    g.lineTo(44, 26);
-    g.closePath();
-    g.fillPath();
+    // 반원형 검기
+    // 지름선 없이 곡선 부분만 그림
+    const gradient = ctx.createLinearGradient(20, 0, 86, 64);
+    gradient.addColorStop(0, 'rgba(80, 210, 255, 0.25)');
+    gradient.addColorStop(0.45, 'rgba(150, 240, 255, 0.95)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 1)');
 
-    // 테두리
-    g.lineStyle(2, 0x66ccff, 1);
-    g.strokeTriangle(4, 18, 44, 4, 76, 18);
-    g.strokeTriangle(4, 18, 44, 32, 76, 18);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    g.generateTexture('blade_wave', 80, 36);
-    g.destroy();
+    // 바깥 빛
+    ctx.shadowColor = 'rgba(120, 230, 255, 0.9)';
+    ctx.shadowBlur = 14;
+
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 17;
+    ctx.beginPath();
+
+    // 오른쪽을 향한 반원 모양
+    // -90도에서 90도까지만 그리기 때문에 지름선이 없음
+    ctx.arc(38, 32, 29, -Math.PI / 2, Math.PI / 2, false);
+    ctx.stroke();
+
+    // 안쪽 밝은 선
+    ctx.shadowBlur = 4;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(38, 32, 29, -Math.PI / 2, Math.PI / 2, false);
+    ctx.stroke();
+
+    // 바깥 파란 테두리
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(80, 200, 255, 0.75)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(38, 32, 36, -Math.PI / 2, Math.PI / 2, false);
+    ctx.stroke();
+
+    tex.refresh();
   }
-
+  
   destroy() {
     this.blades.forEach(blade => this._destroyBlade(blade));
     this.blades = [];
