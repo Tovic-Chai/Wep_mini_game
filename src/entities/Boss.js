@@ -240,6 +240,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._animFrame = (this._animFrame + 1) % RIGHT.length;
       this.sprite.setTexture(RIGHT[this._animFrame]).setFlipX(vx < 0);
     }
+
+    // setTexture() resets body size to texture dimensions — restore after every frame change
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
 
   // ──────────────────────────────────────────
