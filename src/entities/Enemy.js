@@ -119,16 +119,24 @@ export default class Enemy {
     // M05 돌진용 변수
     this.dashCooldown = 2.2;
     this.dashTimer = Phaser.Math.FloatBetween(0.3, 1.5);
-    this.dashDuration = 0;
 
     // 돌진 전 경고 시간
     this.dashTelegraph = 0;
 
-    // 실제 돌진할 방향을 미리 저장
+    // 실제 돌진할 방향
     this.dashAngle = 0;
 
     // 경고 선 길이
     this.dashDistance = 220;
+
+    // 돌진 상태
+    this.dashState = 'idle';
+
+    // 고정된 돌진 시작점 / 끝점
+    this.dashStartX = x;
+    this.dashStartY = y;
+    this.dashTargetX = x;
+    this.dashTargetY = y;
 
     // 경고 이펙트
     this.dashGuide = null;
@@ -213,38 +221,48 @@ export default class Enemy {
   }
 
   updateDash(dt, angle) {
-    // 이미 돌진 중이면 저장된 방향으로 직진
-    if (this.dashDuration > 0) {
-      this.dashDuration -= dt;
+    const dashSpeed = 520 * this.slowMultiplier;
 
-      const dashSpeed = 280 * this.slowMultiplier;
-
-      this.sprite.setVelocity(
-        Math.cos(this.dashAngle) * dashSpeed,
-        Math.sin(this.dashAngle) * dashSpeed
+    // 실제 돌진 중
+    if (this.dashState === 'dashing') {
+      const remain = Phaser.Math.Distance.Between(
+        this.sprite.x,
+        this.sprite.y,
+        this.dashTargetX,
+        this.dashTargetY
       );
 
-      this._drawDashWarning(this.dashAngle, true);
-
-      if (this.dashDuration <= 0) {
+      // 끝점 도달
+      if (remain <= dashSpeed * dt + 6) {
+        this.sprite.setPosition(this.dashTargetX, this.dashTargetY);
+        this.sprite.setVelocity(0, 0);
+        this.dashState = 'idle';
         this._clearDashWarning();
+        return;
       }
 
+      this.scene.physics.moveTo(
+        this.sprite,
+        this.dashTargetX,
+        this.dashTargetY,
+        dashSpeed
+      );
+
+      this._drawDashWarning(true);
       return;
     }
 
-    // 돌진 전 경고 시간
+    // 돌진 전 경고
     if (this.dashTelegraph > 0) {
       this.dashTelegraph -= dt;
 
-      // 경고 중에는 잠깐 멈춤
+      // 경고 중에는 멈춤
       this.sprite.setVelocity(0, 0);
 
-      this._drawDashWarning(this.dashAngle, false);
+      this._drawDashWarning(false);
 
       if (this.dashTelegraph <= 0) {
-        this.dashDuration = 0.35;
-        this._clearDashWarning();
+        this.dashState = 'dashing';
       }
 
       return;
@@ -252,10 +270,19 @@ export default class Enemy {
 
     this.dashTimer -= dt;
 
-    // 돌진 시작 전: 방향 고정 + 경고 시작
+    // 돌진 준비 시작
     if (this.dashTimer <= 0) {
       this.dashTimer = this.dashCooldown;
       this.dashAngle = angle;
+
+      // 시작 시점 고정
+      this.dashStartX = this.sprite.x;
+      this.dashStartY = this.sprite.y;
+
+      // 끝점 고정
+      this.dashTargetX = this.dashStartX + Math.cos(this.dashAngle) * this.dashDistance;
+      this.dashTargetY = this.dashStartY + Math.sin(this.dashAngle) * this.dashDistance;
+
       this.dashTelegraph = 0.55;
       return;
     }
@@ -264,23 +291,27 @@ export default class Enemy {
     this.moveToPlayer(angle, this.speed);
   }
 
-  _drawDashWarning(angle, isDashing = false) {
+  _drawDashWarning(isDashing = false) {
     if (!this.dashGuide) return;
     if (!this.sprite || !this.sprite.active) return;
 
     const g = this.dashGuide;
     g.clear();
 
-    const startX = this.sprite.x;
-    const startY = this.sprite.y;
-    const endX = startX + Math.cos(angle) * this.dashDistance;
-    const endY = startY + Math.sin(angle) * this.dashDistance;
+    // 시작점 / 끝점은 고정
+    const startX = this.dashStartX;
+    const startY = this.dashStartY;
+    const endX = this.dashTargetX;
+    const endY = this.dashTargetY;
 
-    // 돌진 중이면 더 진한 빨강
+    // 현재 몬스터 위치
+    const currentX = this.sprite.x;
+    const currentY = this.sprite.y;
+
     const alpha = isDashing ? 0.35 : 0.75;
     const lineWidth = isDashing ? 10 : 7;
 
-    // 경고 바닥선
+    // 고정 경로
     g.lineStyle(lineWidth, 0xff3333, alpha);
     g.beginPath();
     g.moveTo(startX, startY);
@@ -294,13 +325,13 @@ export default class Enemy {
     g.lineTo(endX, endY);
     g.strokePath();
 
-    // 끝 지점 경고 원
+    // 끝 지점 표시
     g.lineStyle(3, 0xff6666, alpha);
     g.strokeCircle(endX, endY, 16);
 
-    // 몬스터 아래 경고 원
+    // 현재 몬스터 위치 표시
     g.lineStyle(2, 0xff0000, alpha);
-    g.strokeCircle(startX, startY, 20);
+    g.strokeCircle(currentX, currentY, 20);
   }
 
   _clearDashWarning() {

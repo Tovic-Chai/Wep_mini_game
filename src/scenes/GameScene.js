@@ -1165,6 +1165,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   togglePause() {
+    if (this.isGameOver) return;
+    if (this.isLeveling) return;
+
     if (this.isGamePaused) {
       this.resumeGame();
     } else {
@@ -1222,91 +1225,101 @@ export default class GameScene extends Phaser.Scene {
     const cx = W / 2;
     const cy = H / 2;
 
-    // 어두운 배경
     const bg = this.add.rectangle(cx, cy, W, H, 0x000000, 0.72)
       .setDepth(1000)
       .setScrollFactor(0);
 
-    // 바깥 글로우 패널
-    const glowPanel = this.add.rectangle(cx, cy, 500, 360, 0x0ea5e9, 0.16)
+    const glowPanel = this.add.rectangle(cx, cy, 560, 540, 0x0ea5e9, 0.16)
       .setDepth(1001)
       .setScrollFactor(0);
-
     glowPanel.setStrokeStyle(4, 0x38bdf8, 0.45);
 
-    // 메인 패널
-    const panel = this.add.rectangle(cx, cy, 460, 320, 0x0f172a, 0.97)
+    const panel = this.add.rectangle(cx, cy, 520, 500, 0x0f172a, 0.97)
       .setDepth(1002)
       .setScrollFactor(0);
-
     panel.setStrokeStyle(3, 0x7dd3fc, 0.95);
 
-    // 위쪽 장식 라인
-    const topLine = this.add.rectangle(cx, cy - 142, 360, 3, 0x38bdf8, 0.9)
+    const topLine = this.add.rectangle(cx, cy - 232, 380, 3, 0x38bdf8, 0.9)
       .setDepth(1003)
       .setScrollFactor(0);
 
-    // 아래쪽 장식 라인
-    const bottomLine = this.add.rectangle(cx, cy + 142, 360, 3, 0x38bdf8, 0.45)
+    const bottomLine = this.add.rectangle(cx, cy + 232, 380, 3, 0x38bdf8, 0.45)
       .setDepth(1003)
       .setScrollFactor(0);
 
-    // 좌우 작은 장식
-    const leftDot = this.add.circle(cx - 210, cy - 142, 7, 0x93c5fd, 0.95)
+    const leftDot = this.add.circle(cx - 220, cy - 232, 7, 0x93c5fd, 0.95)
       .setDepth(1004)
       .setScrollFactor(0);
 
-    const rightDot = this.add.circle(cx + 210, cy - 142, 7, 0x93c5fd, 0.95)
+    const rightDot = this.add.circle(cx + 220, cy - 232, 7, 0x93c5fd, 0.95)
       .setDepth(1004)
       .setScrollFactor(0);
 
-    // 제목
-    const title = this.add.text(cx, cy - 100, 'PAUSED', {
-      fontSize: '46px',
+    const title = this.add.text(cx, cy - 185, 'PAUSED', {
+      fontSize: '42px',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#38bdf8',
       strokeThickness: 4
-    })
-      .setOrigin(0.5)
-      .setDepth(1005)
-      .setScrollFactor(0);
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
 
-    const subTitle = this.add.text(cx, cy - 58, '일시정지', {
+    const subTitle = this.add.text(cx, cy - 145, '일시정지', {
       fontSize: '22px',
       color: '#bae6fd',
       fontStyle: 'bold'
-    })
-      .setOrigin(0.5)
-      .setDepth(1005)
-      .setScrollFactor(0);
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
 
-    const desc = this.add.text(cx, cy - 25, 'ESC를 다시 누르면 게임을 이어합니다', {
-      fontSize: '17px',
+    const desc = this.add.text(cx, cy - 115, 'ESC를 다시 누르면 게임을 이어합니다', {
+      fontSize: '16px',
       color: '#cbd5e1'
-    })
-      .setOrigin(0.5)
-      .setDepth(1005)
-      .setScrollFactor(0);
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
 
-    // 조작 안내 박스
-    const infoBox = this.add.rectangle(cx, cy + 20, 340, 42, 0x020617, 0.75)
+    const infoBox = this.add.rectangle(cx, cy - 95, 360, 36, 0x020617, 0.75)
       .setDepth(1004)
       .setScrollFactor(0);
-
     infoBox.setStrokeStyle(1, 0x334155, 0.9);
 
-    const infoText = this.add.text(cx, cy + 20, '이동: WASD / 스킬: Q E C / 일시정지: ESC', {
+    const infoText = this.add.text(cx, cy - 95, '이동: WASD / 스킬: Q E C / 일시정지: ESC', {
       fontSize: '14px',
       color: '#94a3b8'
-    })
-      .setOrigin(0.5)
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const skillBox = this.add.rectangle(cx, cy + 40, 420, 220, 0x020617, 0.82)
+      .setDepth(1004)
+      .setScrollFactor(0);
+    skillBox.setStrokeStyle(2, 0x334155, 0.95);
+
+    const activeTitle = this.add.text(cx - 120, cy - 55, '액티브 스킬', {
+      fontSize: '18px',
+      color: '#7dd3fc',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const passiveTitle = this.add.text(cx + 120, cy - 55, '패시브 레벨', {
+      fontSize: '18px',
+      color: '#7dd3fc',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const divider = this.add.rectangle(cx, cy + 20, 2, 150, 0x334155, 1)
       .setDepth(1005)
       .setScrollFactor(0);
+
+    const activeText = this.add.text(cx - 185, cy - 25, this.getPauseActiveSkillText(), {
+      fontSize: '16px',
+      color: '#e2e8f0',
+      lineSpacing: 8
+    }).setOrigin(0, 0).setDepth(1005).setScrollFactor(0);
+
+    const passiveText = this.add.text(cx + 20, cy - 25, this.getPausePassiveSkillText(), {
+      fontSize: '16px',
+      color: '#e2e8f0',
+      lineSpacing: 6
+    }).setOrigin(0, 0).setDepth(1005).setScrollFactor(0);
 
     const resumeBtn = this.createPauseButton(
       cx,
-      cy + 78,
+      cy + 175,
       '이어하기',
       0x2563eb,
       0x1d4ed8,
@@ -1317,7 +1330,7 @@ export default class GameScene extends Phaser.Scene {
 
     const trailerBtn = this.createPauseButton(
       cx,
-      cy + 132,
+      cy + 228,
       '다시하기',
       0x7c2d12,
       0x9a3412,
@@ -1326,7 +1339,6 @@ export default class GameScene extends Phaser.Scene {
       }
     );
 
-    // 은은한 패널 애니메이션
     this.tweens.add({
       targets: [glowPanel, leftDot, rightDot],
       alpha: 0.35,
@@ -1348,6 +1360,12 @@ export default class GameScene extends Phaser.Scene {
       desc,
       infoBox,
       infoText,
+      skillBox,
+      activeTitle,
+      passiveTitle,
+      divider,
+      activeText,
+      passiveText,
       ...resumeBtn,
       ...trailerBtn
     );
@@ -1418,6 +1436,41 @@ export default class GameScene extends Phaser.Scene {
 
     // 트레일러 / 타이틀 화면으로 이동
     this.scene.start(this.returnSceneKey || 'TitleScene');
+  }
+
+  getPauseActiveSkillText() {
+    const slots = ['Q', 'E', 'C'];
+
+    return slots.map(slot => {
+      const skill = this.player?.skills?.[slot];
+      if (!skill) return `${slot} : 없음`;
+      return `${slot} : ${skill.name}  Lv.${skill.level || 1}`;
+    }).join('\n');
+  }
+
+  getPausePassiveSkillText() {
+    const names = {
+      fireball: '파이어볼',
+      lightning: '번개',
+      orbit: '회전 오브',
+      poison: '독 장판',
+      ice: '얼음 파편',
+      laser: '레이저',
+      blade: '검기',
+      drone: '드론'
+    };
+
+    const order = ['fireball', 'lightning', 'orbit', 'poison', 'ice', 'laser', 'blade', 'drone'];
+
+    const lines = [];
+
+    order.forEach(type => {
+      const weapon = this.player?.getPassiveWeapon(type);
+      if (!weapon) return;
+      lines.push(`${names[type]}  Lv.${weapon.level}`);
+    });
+
+    return lines.length > 0 ? lines.join('\n') : '획득한 패시브 없음';
   }
 
   hidePauseOverlay() {

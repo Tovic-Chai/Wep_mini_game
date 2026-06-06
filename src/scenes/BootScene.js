@@ -148,6 +148,9 @@ export default class BootScene extends Phaser.Scene {
     g.generateTexture('exp_orb', 12, 12);
     g.destroy();
 
+    // 여기 추가
+    this.generatePixelWeaponTextures();
+
     // ── 10) 배경 3중 (별 밀도 다르게) ──
     this.makeStarTexture('bg_space_far', 960, 640, 200, 1, true);
     this.makeStarTexture('bg_space_mid', 960, 640, 60, 2, false);
@@ -168,6 +171,149 @@ export default class BootScene extends Phaser.Scene {
       g.fillCircle(x, y, radius);
     }
     g.generateTexture(key, w, h);
+    g.destroy();
+  }
+
+  generatePixelWeaponTextures() {
+    // 플레이어 총알
+    this.makePixelTexture('bullet', [
+      '..11..',
+      '.1221.',
+      '123321',
+      '.1221.',
+      '..11..'
+    ], {
+      '1': 0x5ee7ff,
+      '2': 0x1fb6d9,
+      '3': 0xffffff
+    }, 3);
+
+    // 파이어볼
+    this.makePixelTexture('fireball', [
+      '...11...',
+      '..1221..',
+      '.123321.',
+      '12344321',
+      '.123321.',
+      '..1221..',
+      '...11...'
+    ], {
+      '1': 0xff6a00,
+      '2': 0xff9900,
+      '3': 0xffdd55,
+      '4': 0xffffff
+    }, 4);
+
+    // 회전 오브
+    this.makePixelTexture('orbit_orb', [
+      '..111..',
+      '.12221.',
+      '1233321',
+      '1234321',
+      '1233321',
+      '.12221.',
+      '..111..'
+    ], {
+      '1': 0x0d4ea6,
+      '2': 0x27a7ff,
+      '3': 0x8de8ff,
+      '4': 0xffffff
+    }, 3);
+
+    // 얼음 파편
+    this.makePixelTexture('ice_shard', [
+      '................',
+      '..11............',
+      '.1221...........',
+      '1233211.........',
+      '1234332211......',
+      '123444333221111.',
+      '1234332211......',
+      '1233211.........',
+      '.1221...........',
+      '..11............',
+      '................'
+    ], {
+      '1': 0x55cfff,
+      '2': 0xa6efff,
+      '3': 0xe7fdff,
+      '4': 0xffffff
+    }, 4);
+
+    // 드론 코어
+    this.makePixelTexture('drone_core', [
+      '..1111..',
+      '.122221.',
+      '12344321',
+      '12455421',
+      '12344321',
+      '.122221.',
+      '..1111..'
+    ], {
+      '1': 0x334155,
+      '2': 0x60a5fa,
+      '3': 0xcbd5e1,
+      '4': 0x0f172a,
+      '5': 0xffffff
+    }, 4);
+
+    // 드론 총알
+    this.makePixelTexture('drone_bullet', [
+      '.11.',
+      '1221',
+      '1221',
+      '.11.'
+    ], {
+      '1': 0xf59e0b,
+      '2': 0xffffff
+    }, 4);
+
+    // 검기
+    this.makePixelTexture('blade_crescent', [
+      '.........1111.............',
+      '.........11122111..........',
+      '........1233222111.......',
+      '.......1233322211.....',
+      '......1234333221....',
+      '........4443321...',
+      '...........44321...',
+      '.............44321...',
+      '...........44321...',
+      '........4443321...',
+      '......1234333221....',
+      '.......1233322211.....',
+      '........1233222111.......',
+      '.........11122111..........',
+      '.........1111.............'
+    ], {
+      '1': 0xdbeafe,
+      '2': 0x93c5fd,
+      '3': 0x60a5fa,
+      '4': 0xffffff
+    }, 4);
+  }
+
+  makePixelTexture(key, rows, palette, pixelSize = 4) {
+    if (this.textures.exists(key)) return;
+
+    const g = this.add.graphics();
+    const h = rows.length;
+    const w = rows[0].length;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const ch = rows[y][x];
+        if (ch === '.') continue;
+
+        const color = palette[ch];
+        if (!color) continue;
+
+        g.fillStyle(color, 1);
+        g.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+      }
+    }
+
+    g.generateTexture(key, w * pixelSize, h * pixelSize);
     g.destroy();
   }
 }
