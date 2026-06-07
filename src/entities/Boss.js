@@ -53,7 +53,11 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
 
     this.angleOffset = 0;
-    this._baseScale = scaleMap[kind] || 0.3;  // 캐스팅 스케일 복원용
+    this._baseScale = scaleMap[kind] || 0.3;
+
+    // 이동 속도 (슬로우 스킬이 이 값을 직접 수정)
+    const baseSpeedMap = { mini1: 45, mini2: 55, mini3: 70, final: 60 };
+    this.speed = baseSpeedMap[kind] || 45;
 
     // ── 미니보스1 애니메이션 상태 ──
     if (kind === 'mini1') {
@@ -189,10 +193,10 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this.specialTimer = [null, 8, 10, 14][this.phase] || 8;
     }
 
-    // 메인보스 페이즈 전환
+    // 메인보스 페이즈 전환 (최대 HP 기준 비율)
     if (this.kind === 'final') {
-      if (this.phase === 1 && this.hp <= 10000) this.setPhase(2);
-      if (this.phase === 2 && this.hp <= 5000) this.setPhase(3);
+      if (this.phase === 1 && this.hp <= this._maxHp * 0.66) this.setPhase(2);
+      if (this.phase === 2 && this.hp <= this._maxHp * 0.33) this.setPhase(3);
     }
 
     // 플레이어 추적
@@ -201,13 +205,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this.sprite.x, this.sprite.y, player.x, player.y
     );
 
-    const speedMap = {
-      mini1: 45, mini2: 55, mini3: 70,
-    };
-    let moveSpeed = speedMap[this.kind] || 45;
-    if (this.kind === 'final') {
-      moveSpeed = [null, 60, 85, 110][this.phase] || 60;
-    }
+    let moveSpeed = this.speed;
 
     // mini3 정지 타이머 차감
     if (this.kind === 'mini3' && this._stopTimer > 0) this._stopTimer -= dt;
@@ -1226,7 +1224,13 @@ export default class Boss extends Phaser.Events.EventEmitter {
   setPhase(n) {
     if (this.phase === n) return;
     this.phase = n;
-    // 단일 이미지 보스: 텍스처 교체 없음, 주황 플래시로 페이즈 구분
+    // 페이즈별 속도 업데이트 (슬로우가 걸려 있지 않을 때만)
+    if (!this._slowedSpeed) {
+      this.speed = [null, 60, 85, 110][n] || 60;
+    } else {
+      // 슬로우 중: 원래 속도 기준값만 갱신, 실제 this.speed는 슬로우 해제 때 복원
+      this._slowedSpeed = [null, 60, 85, 110][n] || 60;
+    }
     this.scene.cameras.main.flash(500, 255, 100, 0);
   }
 
@@ -1298,40 +1302,41 @@ export default class Boss extends Phaser.Events.EventEmitter {
     scene.tweens.add({ targets: hole, radius: 50, duration: 500, ease: 'Sine.Out' });
     scene.tweens.add({ targets: hole, alpha: 0.4, duration: 120, yoyo: true, repeat: 3 });
 
+    // 500ms 경고 후 흡인 시작
+    let pullEvent = null;
     scene.time.delayedCall(500, () => {
       if (!hole.active || !this.alive) return;
       scene.tweens.add({ targets: hole, radius: 150, duration: 400, ease: 'Back.Out' });
-    });
 
-    const pullEvent = scene.time.addEvent({
-      delay: 50,
-      repeat: 69,
-      startAt: 500,
-      callback: () => {
-        if (!hole.active) return;
+      pullEvent = scene.time.addEvent({
+        delay: 50,
+        repeat: 59,
+        callback: () => {
+          if (!hole.active) return;
 
-        if (player.sprite?.active && player.sprite.body) {
-          const pDist = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, bx, by);
-          if (pDist < 350) {
-            const pa = Phaser.Math.Angle.Between(player.sprite.x, player.sprite.y, bx, by);
-            const pullStrength = (player.speed || 200) * 0.5 / 20;
-            player.sprite.body.velocity.x += Math.cos(pa) * pullStrength;
-            player.sprite.body.velocity.y += Math.sin(pa) * pullStrength;
+          if (player.sprite?.active && player.sprite.body) {
+            const pDist = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, bx, by);
+            if (pDist < 350) {
+              const pa = Phaser.Math.Angle.Between(player.sprite.x, player.sprite.y, bx, by);
+              const pullStrength = (player.speed || 200) * 0.5 / 20;
+              player.sprite.body.velocity.x += Math.cos(pa) * pullStrength;
+              player.sprite.body.velocity.y += Math.sin(pa) * pullStrength;
+            }
+          }
+
+          if (scene.enemyManager?.group) {
+            scene.enemyManager.group.children.each(e => {
+              if (!e.active) return;
+              const ed = Phaser.Math.Distance.Between(e.x, e.y, bx, by);
+              if (ed < 500) {
+                const ea = Phaser.Math.Angle.Between(e.x, e.y, bx, by);
+                e.body.velocity.x += Math.cos(ea) * 55;
+                e.body.velocity.y += Math.sin(ea) * 55;
+              }
+            });
           }
         }
-
-        if (scene.enemyManager?.group) {
-          scene.enemyManager.group.children.each(e => {
-            if (!e.active) return;
-            const ed = Phaser.Math.Distance.Between(e.x, e.y, bx, by);
-            if (ed < 500) {
-              const ea = Phaser.Math.Angle.Between(e.x, e.y, bx, by);
-              e.body.velocity.x += Math.cos(ea) * 55;
-              e.body.velocity.y += Math.sin(ea) * 55;
-            }
-          });
-        }
-      }
+      });
     });
 
     scene.time.delayedCall(3500, () => {
@@ -1351,9 +1356,10 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const player = scene.player;
     if (!player?.sprite) return;
 
-    const baseAngle = Phaser.Math.Angle.Between(
-      this.sprite.x, this.sprite.y, player.sprite.x, player.sprite.y
-    );
+    // 경고 시점의 보스 좌표 스냅샷 → 빔도 동일 좌표 사용
+    const originX = this.sprite.x;
+    const originY = this.sprite.y;
+    const baseAngle = Phaser.Math.Angle.Between(originX, originY, player.sprite.x, player.sprite.y);
     const beamLength = 320;
     const beamCount  = 5;
 
@@ -1361,19 +1367,18 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const warnings = [];
     for (let i = 0; i < beamCount; i++) {
       const a = baseAngle + Phaser.Math.DegToRad(-12 + i * 6);
-      const mx = this.sprite.x + Math.cos(a) * beamLength / 2;
-      const my = this.sprite.y + Math.sin(a) * beamLength / 2;
+      const mx = originX + Math.cos(a) * beamLength / 2;
+      const my = originY + Math.sin(a) * beamLength / 2;
       const warn = scene.add.rectangle(mx, my, beamLength, 10, 0xffee44, 0.25)
         .setDepth(8).setRotation(a);
       warnings.push(warn);
     }
     scene.tweens.add({ targets: warnings, alpha: 0.65, duration: 160, yoyo: true, repeat: 3 });
-    // 보스 몸통 충전 모션
     if (this.sprite?.active) {
       scene.tweens.add({ targets: this.sprite, alpha: 0.3, duration: 130, yoyo: true, repeat: 3 });
     }
 
-    // 800ms 후 실제 빔 발사
+    // 800ms 후 실제 빔 발사 (스냅샷 좌표 기준)
     scene.time.delayedCall(800, () => {
       warnings.forEach(w => { if (w.active) w.destroy(); });
       if (!this.alive) return;
@@ -1383,8 +1388,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
         scene.time.delayedCall(i * 100, () => {
           if (!this.alive) return;
 
-          const mx = this.sprite.x + Math.cos(beamAngle) * beamLength / 2;
-          const my = this.sprite.y + Math.sin(beamAngle) * beamLength / 2;
+          const mx = originX + Math.cos(beamAngle) * beamLength / 2;
+          const my = originY + Math.sin(beamAngle) * beamLength / 2;
           const beam = scene.add.rectangle(mx, my, beamLength, 18, 0xffee44, 0.9)
             .setDepth(9).setRotation(beamAngle);
 
@@ -1393,9 +1398,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
           const px = player.sprite.x;
           const py = player.sprite.y;
           const line = new Phaser.Geom.Line(
-            this.sprite.x, this.sprite.y,
-            this.sprite.x + Math.cos(beamAngle) * beamLength,
-            this.sprite.y + Math.sin(beamAngle) * beamLength
+            originX, originY,
+            originX + Math.cos(beamAngle) * beamLength,
+            originY + Math.sin(beamAngle) * beamLength
           );
           if (Phaser.Geom.Line.GetShortestDistance(line, new Phaser.Geom.Point(px, py)) < 22) {
             player.takeDamage(18);
