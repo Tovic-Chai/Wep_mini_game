@@ -10,7 +10,10 @@ export default class Enemy {
       M03: 'enemy_m03'
     }[type] || 'enemy';
 
-    this.sprite = scene.physics.add.sprite(x, y, textureKey).setDepth(1);
+    this.sprite = scene.physics.add.sprite(x, y, textureKey)
+      .setDepth(1)
+      .setDisplaySize(40, 40);
+    this.sprite.body.setSize(36, 36);
     this.sprite.parentRef = this;
 
     // 몬스터별 기본 스탯 + 경험치 색상
@@ -86,6 +89,12 @@ export default class Enemy {
         Math.cos(angle) * this.speed,
         Math.sin(angle) * this.speed
       );
+    }
+
+    // 이미지가 왼쪽을 향하므로 오른쪽 이동 시 flipX
+    if (this.type === 'M01' || this.type === 'M02') {
+      const vx = this.sprite.body.velocity.x;
+      if (Math.abs(vx) > 5) this.sprite.setFlipX(vx > 0);
     }
 
     // 너무 멀어지면 디스폰

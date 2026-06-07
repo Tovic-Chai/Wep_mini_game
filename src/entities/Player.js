@@ -67,13 +67,13 @@ export default class Player {
     this.exp = 0;
     this.expToNext = 20;
 
-    // ── 액티브 스킬 (Q / E / C) ──
-    this.skills = { Q: null, E: null, C: null };
-    this.skillCooldowns = { Q: 0, E: 0, C: 0 };
+    // ── 액티브 스킬 (Q / E / R) ──
+    this.skills = { Q: null, E: null, R: null };
+    this.skillCooldowns = { Q: 0, E: 0, R: 0 };
 
     this.keyQ = scene.input.keyboard.addKey('Q');
     this.keyE = scene.input.keyboard.addKey('E');
-    this.keyC = scene.input.keyboard.addKey('C');
+    this.keyR = scene.input.keyboard.addKey('R');
 
     // ── 패시브 무기 ──
     this.passiveWeapons = [];
@@ -267,11 +267,11 @@ export default class Player {
   _handleSkillKeys() {
     if (Phaser.Input.Keyboard.JustDown(this.keyQ)) this.useSkill('Q');
     if (Phaser.Input.Keyboard.JustDown(this.keyE)) this.useSkill('E');
-    if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.useSkill('C');
+    if (Phaser.Input.Keyboard.JustDown(this.keyR)) this.useSkill('R');
   }
 
   _updateCooldowns(dt) {
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       if (this.skillCooldowns[k] > 0)
         this.skillCooldowns[k] = Math.max(0, this.skillCooldowns[k] - dt);
     }
@@ -363,7 +363,7 @@ export default class Player {
   }
 
   acquireSkill(skillData) {
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       if (!this.skills[k]) { this.skills[k] = new Skill(this.scene, skillData); return; }
     }
     this.skills['Q'] = new Skill(this.scene, skillData);

@@ -31,10 +31,10 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // 보스별 스탯 및 획득 스킬
     const configs = {
-      mini1: { hp: 1500, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
-      mini2: { hp: 2500, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
-      mini3: { hp: 4000, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
-      final: { hp: 15000, skill: null }
+      mini1: { hp: 1200, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
+      mini2: { hp: 2000, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
+      mini3: { hp: 3200, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
+      final: { hp: 12000, skill: null }
     };
 
     const cfg = configs[kind] || configs.mini1;
@@ -97,7 +97,13 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const barX   = 480;
     // 상단 HUD 패널(y 0~54) 아래에 배치해 타이머·HP 텍스트와 겹치지 않게 한다
     const barY   = (this.kind === 'final') ? 84 : 76;
-    const label  = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
+    const labelMap = {
+      mini1: 'Black Magician',
+      mini2: 'Otherworldly Being',
+      mini3: 'The Unseen One',
+      final: 'FINAL BOSS'
+    };
+    const label = labelMap[this.kind] || 'BOSS';
     const color  = (this.kind === 'final') ? 0xff2200 : 0xff6600;
 
     this.hpBarBg = scene.add.rectangle(barX, barY, barW + 4, 18, 0x000000)
