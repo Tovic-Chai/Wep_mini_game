@@ -56,7 +56,20 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._animTimer  = 0;
       this._animFrame  = 0;
       this._animDir    = 'back';
-      this._isCasting  = false;  // 마법진 시전 중 이동 정지 플래그
+      this._isCasting  = false;
+    }
+
+    // ── 미니보스2 눈 깜빡임 상태 ──
+    if (kind === 'mini2') {
+      this._eyeState = 0;                          // 0=열림, 1=반, 2=감김, 3=반
+      this._eyeTimer = 1.5 + Math.random() * 1.0;
+    }
+
+    // ── 미니보스3 멈춤/걷기 블렌딩 ──
+    if (kind === 'mini3') {
+      this._stopTimer = 0;
+      this._walkTimer = 0;
+      this._walkBobUp = false;
     }
 
     // ── 보스별 특수 패턴 타이머 ──
@@ -186,7 +199,12 @@ export default class Boss extends Phaser.Events.EventEmitter {
       moveSpeed = [null, 60, 85, 110][this.phase] || 60;
     }
 
-    if (this.kind === 'mini1' && this._isCasting) {
+    // mini3 정지 타이머 차감
+    if (this.kind === 'mini3' && this._stopTimer > 0) this._stopTimer -= dt;
+
+    const mini3Stopped = this.kind === 'mini3' && this._stopTimer > 0;
+
+    if ((this.kind === 'mini1' && this._isCasting) || mini3Stopped) {
       this.sprite.setVelocity(0, 0);
     } else {
       this.sprite.setVelocity(
@@ -196,6 +214,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
 
     if (this.kind === 'mini1' && !this._isCasting) this._updateMini1Anim(dt);
+    if (this.kind === 'mini2') this._updateMini2Anim(dt);
+    if (this.kind === 'mini3') this._updateMini3Anim(dt);
     this._updateHpBar();
   }
 
@@ -243,6 +263,61 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // setTexture() resets body size to texture dimensions — restore after every frame change
     this.sprite.body.setSize(this._bodySize, this._bodySize);
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스2 눈 깜빡임 애니메이션
+  //  open(길게) → half-close → closed → half-open 사이클
+  // ──────────────────────────────────────────
+  _updateMini2Anim(dt) {
+    if (!this.sprite?.active) return;
+    this._eyeTimer -= dt;
+    if (this._eyeTimer > 0) return;
+
+    // 0=열림, 1=반감김, 2=완전감김, 3=반열림
+    const EYE = [
+      { tint: null,     dur: 1.8 + Math.random() * 1.5 },  // 열린 상태 (길게)
+      { tint: 0x776677, dur: 0.10 },                        // 반 감김
+      { tint: 0x111011, dur: 0.15 },                        // 완전 감김
+      { tint: 0x776677, dur: 0.10 },                        // 반 열림
+    ];
+
+    this._eyeState = (this._eyeState + 1) % EYE.length;
+    const s = EYE[this._eyeState];
+    this._eyeTimer = s.dur;
+
+    if (s.tint === null) {
+      this.sprite.clearTint();
+    } else {
+      this.sprite.setTint(s.tint);
+    }
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스3 걷기/멈춤 모션 블렌딩
+  //  이동 중: 좌우 미세 흔들림
+  //  정지 중: 크기 맥동 (소환/순간이동 예고)
+  // ──────────────────────────────────────────
+  _updateMini3Anim(dt) {
+    if (!this.sprite?.active) return;
+
+    const base = this._baseScale;
+    this._walkTimer -= dt;
+    if (this._walkTimer > 0) return;
+
+    if (this._stopTimer > 0) {
+      // 정지 중: 맥동 (소환/순간이동 예고 느낌)
+      this._walkTimer = 0.14;
+      this._walkBobUp = !this._walkBobUp;
+      const pulse = this._walkBobUp ? 0.04 : -0.02;
+      this.sprite.setScale(base + pulse, base - pulse * 0.5);
+    } else {
+      // 이동 중: 좌우 미세 흔들림 (걷기 느낌)
+      this._walkTimer = 0.18;
+      this._walkBobUp = !this._walkBobUp;
+      const sway = this._walkBobUp ? 0.022 : -0.022;
+      this.sprite.setScale(base + sway, base - sway * 0.6);
+    }
   }
 
   // ──────────────────────────────────────────
@@ -740,6 +815,23 @@ export default class Boss extends Phaser.Events.EventEmitter {
   summonClones() {
     const scene = this.scene;
 
+    // 분신 소환 전 잠깐 멈추는 모션 (mini3 전용)
+    if (this.kind === 'mini3') {
+      this._stopTimer = 2.0;
+      if (this.sprite?.active) {
+        // 소환 예고: 약간 스케일 업 후 복귀
+        scene.tweens.add({
+          targets: this.sprite,
+          scaleX: this._baseScale * 1.15,
+          scaleY: this._baseScale * 1.15,
+          duration: 200,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.InOut'
+        });
+      }
+    }
+
     this.cloneSprites.forEach(c => {
       if (c && c.active) c.destroy();
     });
@@ -791,6 +883,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const scene = this.scene;
     const player = scene.player;
     if (!player || !player.sprite) return;
+
+    // 순간이동 직전 잠깐 멈춤
+    this._stopTimer = 0.5;
 
     const oldX = this.sprite.x;
     const oldY = this.sprite.y;
