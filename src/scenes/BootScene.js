@@ -2,6 +2,14 @@ export default class BootScene extends Phaser.Scene {
   constructor() { super({ key: 'BootScene' }); }
 
   preload() {
+    // ── 몬스터 이미지 ──
+    this.load.image('enemy',     'assets/images/monster1.png');
+    this.load.image('enemy_m02', 'assets/images/monster2.png');
+
+    // ── 미니보스2 레이저 이미지 ──
+    this.load.image('mb2_laser',     'assets/images/mini_boss2_laser.png');
+    this.load.image('mb2_eye_laser', 'assets/images/mini_boss2_eye+ laser.png');
+
     // ── 보스 이미지 ──
     this.load.image('player', 'assets/images/player1.png');
     this.load.image('boss_mini1', 'assets/images/mini_boss_1.png');
@@ -10,6 +18,15 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('boss_final_phase1', 'assets/images/boss_phase_1.png');
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
+
+    // ── 메인보스 방향별 이미지 + 스킬 이미지 ──
+    this.load.image('main_boss_down',       'assets/images/main_boss_down.png');
+    this.load.image('main_boss_up',         'assets/images/main_boss_up.png');
+    this.load.image('main_boss_right',      'assets/images/main_boss_right.png');
+    this.load.image('boss_skill_blackhole', 'assets/images/main_boss_blackholl.png');
+    this.load.image('boss_skill_clock',     'assets/images/main_boss_clock.png');
+    this.load.image('boss_skill_light',     'assets/images/main_boss_light.png');
+    this.load.image('boss_skill_mirror',    'assets/images/main_boss_borken_mirror.png');
 
     // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
     // 아래 방향 (후면 = 카메라 향해 걷기)
@@ -34,9 +51,47 @@ export default class BootScene extends Phaser.Scene {
       console.warn('자산 로드 실패 (무시):', file.src);
     });
 
-    this.load.on('loaderror', (file) => {
-      console.error('이미지 로드 실패:', file.key, file.src);
-    });
+    // ── 미니보스1 방향별 애니메이션 ──
+    this.load.image('mb1_front_base',  'assets/images/mini_boss1_frontward_base.png');
+    this.load.image('mb1_front_alpha', 'assets/images/mini_boss1_frontward_base+alpha.png');
+    this.load.image('mb1_back_close',  'assets/images/mini_boss1_backward_eye_close.png');
+    this.load.image('mb1_back_half',   'assets/images/mini_boss1_backward_eye_open_half.png');
+    this.load.image('mb1_back_open',   'assets/images/mini_boss1_backward_eye_open.png');
+    this.load.image('mb1_right_close', 'assets/images/mini_boss1_rightward_eye_close.png');
+    this.load.image('mb1_right_half',  'assets/images/mini_boss1_rightward_eye_open_half.png');
+    this.load.image('mb1_right_open',  'assets/images/mini_boss1_rightward_eye_open.png');
+
+    // ── 미니보스1 캐스팅 애니메이션 (마법진 시전 4프레임) ──
+    this.load.image('mb1_cast1', 'assets/images/mini_boss_pattern_1_1.png');
+    this.load.image('mb1_cast2', 'assets/images/mini_boss_pattern_1_2.png');
+    this.load.image('mb1_cast3', 'assets/images/mini_boss_pattern_1_3.png');
+    this.load.image('mb1_cast4', 'assets/images/mini_boss_pattern_1_4.png');
+
+    // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
+    // front(아래) 방향 — open 상태는 boss_mini2 기본 텍스처 사용 (fornt_eye_open.png 는 빈 파일)
+    this.load.image('mb2_front_half2',  'assets/images/mini_boss2_fornt_eye_half2.png');
+    this.load.image('mb2_front_half',   'assets/images/mini_boss2_fornt_eye_half.png');
+    this.load.image('mb2_front_close',  'assets/images/mini_boss2_fornt_eye_close.png');
+    this.load.image('mb2_front_close2', 'assets/images/mini_boss2_fornt_eye_close2.png');
+    this.load.image('mb2_front_close3', 'assets/images/mini_boss2_fornt_eye_close3.png');
+    // right 방향 — open2 사용 (right_eye_open.png 는 빈 파일)
+    this.load.image('mb2_right_open2',  'assets/images/mini_boss2_right_eye_open2.png');
+    this.load.image('mb2_right_half2',  'assets/images/mini_boss2_right_eye_half2.png');
+    this.load.image('mb2_right_half',   'assets/images/mini_boss2_right_eye_half.png');
+    this.load.image('mb2_right_close',  'assets/images/mini_boss2_right_eye_close.png');
+    // up 방향
+    this.load.image('mb2_up_open',  'assets/images/mini_boss2_up_eye_open.png');
+    this.load.image('mb2_up_half',  'assets/images/mini_boss2_up_eye_half.png');
+    this.load.image('mb2_up_close', 'assets/images/mini_boss2_up_eye_close.png');
+
+    // ── 미니보스3 걷기/멈춤 애니메이션 ──
+    this.load.image('mb3_down_walk1',  'assets/images/mini_boss3_down_walk1.png');
+    this.load.image('mb3_down_walk2',  'assets/images/mini_boss3_down_walk2.png');
+    this.load.image('mb3_right_walk1', 'assets/images/mini_boss3_right_walk1.png');
+    this.load.image('mb3_right_walk2', 'assets/images/mini_boss3_right_walk2.png');
+    this.load.image('mb3_up_walk1',    'assets/images/mini_boss3_up_walk.png');
+    this.load.image('mb3_up_walk2',    'assets/images/mini_boss3_up_walk2.png');
+    this.load.image('mb3_stop',        'assets/images/mini_boss3_left_stop.png');
   }
 
   create() {
@@ -102,25 +157,29 @@ export default class BootScene extends Phaser.Scene {
     g.generateTexture('boss_bullet', 14, 6);
     g.destroy();
 
-    // ── 6) 적 M01 (자홍색 사각형) ──
-    g = this.add.graphics();
-    g.fillStyle(0xaa44ff, 1);
-    g.fillRect(2, 2, 24, 24);
-    g.lineStyle(2, 0xffaaff, 1);
-    g.strokeRect(2, 2, 24, 24);
-    g.generateTexture('enemy', 28, 28);
-    g.destroy();
+    // ── 6) 적 M01 (이미지 없으면 자홍색 사각형 폴백) ──
+    if (!this.textures.exists('enemy')) {
+      g = this.add.graphics();
+      g.fillStyle(0xaa44ff, 1);
+      g.fillRect(2, 2, 24, 24);
+      g.lineStyle(2, 0xffaaff, 1);
+      g.strokeRect(2, 2, 24, 24);
+      g.generateTexture('enemy', 28, 28);
+      g.destroy();
+    }
 
-    // ── 7) 적 M02 (다크레드 다이아몬드) ──
-    g = this.add.graphics();
-    g.fillStyle(0xcc2200, 1);
-    g.fillTriangle(14, 1, 27, 14, 14, 27);
-    g.fillTriangle(14, 1, 1, 14, 14, 27);
-    g.lineStyle(2, 0xff6644, 1);
-    g.strokeTriangle(14, 1, 27, 14, 14, 27);
-    g.strokeTriangle(14, 1, 1, 14, 14, 27);
-    g.generateTexture('enemy_m02', 28, 28);
-    g.destroy();
+    // ── 7) 적 M02 (이미지 없으면 다크레드 다이아몬드 폴백) ──
+    if (!this.textures.exists('enemy_m02')) {
+      g = this.add.graphics();
+      g.fillStyle(0xcc2200, 1);
+      g.fillTriangle(14, 1, 27, 14, 14, 27);
+      g.fillTriangle(14, 1, 1, 14, 14, 27);
+      g.lineStyle(2, 0xff6644, 1);
+      g.strokeTriangle(14, 1, 27, 14, 14, 27);
+      g.strokeTriangle(14, 1, 1, 14, 14, 27);
+      g.generateTexture('enemy_m02', 28, 28);
+      g.destroy();
+    }
 
     // ── 8) 적 M03 (오렌지 육각형) ──
     g = this.add.graphics();

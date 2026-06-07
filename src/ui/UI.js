@@ -20,34 +20,12 @@ export default class UI {
       stroke: '#000', strokeThickness: 3
     }).setOrigin(0.5, 0).setDepth(20).setScrollFactor(0);
 
-    // ── 스킬 슬롯 (Q / E / C) — 하단 ──
+    // ── 스킬 슬롯 (Q / E / R) — 하단 ──
     this.skillSlots = {
       Q: this._makeSkillSlot(s, 16, 596, 'Q'),
       E: this._makeSkillSlot(s, 180, 596, 'E'),
-      C: this._makeSkillSlot(s, 344, 596, 'C')
+      R: this._makeSkillSlot(s, 344, 596, 'R')
     };
-
-    // ── 패시브 무기 HUD (우측 하단) ──
-    this.passiveIcons = {};
-    const passiveTypes = [
-      { key: 'fireball', label: '🔥', color: '#ff6600' },
-      { key: 'lightning', label: '⚡', color: '#aaddff' },
-      { key: 'orbit', label: '🌀', color: '#00aaff' },
-      { key: 'poison', label: '☠️', color: '#66ff99' },
-      { key: 'ice', label: '❄️', color: '#99ddff' },
-      { key: 'laser', label: '🔷', color: '#66ddff' },
-      { key: 'blade', label: '🗡️', color: '#ccf6ff' },
-      { key: 'drone', label: '🤖', color: '#ffdd66' }
-    ];
-    passiveTypes.forEach(({ key, label, color, x }, i) => {
-      const icon = s.add.text(920 - i * 34, 612, label, {
-        fontSize: '16px', color: '#666'
-      }).setOrigin(0.5).setDepth(20).setScrollFactor(0);
-      const lvTxt = s.add.text(920 - i * 34, 628, '', {
-        fontSize: '11px', color
-      }).setOrigin(0.5).setDepth(20).setScrollFactor(0);
-      this.passiveIcons[key] = { icon, lvTxt };
-    });
 
     // ── 결과 화면 (게임 오버 / 클리어) ──
     this.resultOverlay = s.add.rectangle(480, 320, 500, 200, 0x000000, 0.8)
@@ -92,7 +70,7 @@ export default class UI {
     this.timerText.setColor(remain <= 60 ? '#ff4444' : '#ffffff');
 
     // 스킬 슬롯
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       const skill = p.skills[k];
       const cd = p.skillCooldowns[k];
       let text;
@@ -109,17 +87,6 @@ export default class UI {
       this.skillSlots[k].text.setText(text);
     }
 
-    // 패시브 무기 아이콘
-    for (const [key, { icon, lvTxt }] of Object.entries(this.passiveIcons)) {
-      const w = p.getPassiveWeapon(key);
-      if (w) {
-        icon.setColor('#ffffff');
-        lvTxt.setText(`Lv${w.level}`);
-      } else {
-        icon.setColor('#444444');
-        lvTxt.setText('');
-      }
-    }
   }
 
   showSkillAcquired(skill) {
