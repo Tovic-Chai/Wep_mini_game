@@ -39,7 +39,7 @@ export default class GameScene extends Phaser.Scene {
 
     // ── 카메라 ──
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
-    this.cameras.main.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
+    // setBounds 제거 → 카메라가 감싸기 후 새 위치를 자유롭게 추적 가능
 
     // ── 타이밍 / 상태 ──
     this.gameTime = 0;
@@ -182,6 +182,7 @@ export default class GameScene extends Phaser.Scene {
 
     // 엔티티 업데이트
     this.player.update(dt, this.cursors, this.keys);
+    this._wrapPlayer();
     this.enemyManager.update(dt, this.gameTime);
 
     // ── 보스 스폰 타임라인 (카운트다운 10분 기준) ──
@@ -221,6 +222,29 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.ui.update(this.gameTime);
+  }
+
+  // ════════════════════════════════════════════
+  //  맵 감싸기 (토로이달 월드)
+  // ════════════════════════════════════════════
+  _wrapPlayer() {
+    const s    = this.player.sprite;
+    const HALF = 2000; // WORLD / 2
+    let wx = s.x, wy = s.y, wrapped = false;
+
+    if (s.x >  HALF) { wx = s.x - HALF * 2; wrapped = true; }
+    if (s.x < -HALF) { wx = s.x + HALF * 2; wrapped = true; }
+    if (s.y >  HALF) { wy = s.y - HALF * 2; wrapped = true; }
+    if (s.y < -HALF) { wy = s.y + HALF * 2; wrapped = true; }
+
+    if (wrapped) {
+      s.setPosition(wx, wy);
+      // 카메라 lerp로 인한 긴 이동 방지: follow를 일시 중단 후 즉시 스냅
+      const cam = this.cameras.main;
+      cam.stopFollow();
+      cam.centerOn(wx, wy);
+      cam.startFollow(s, true, 0.1, 0.1);
+    }
   }
 
   // ════════════════════════════════════════════

@@ -44,7 +44,7 @@ export default class Player {
       .setDepth(2)
       .setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
 
-    this.sprite.setCollideWorldBounds(true);
+    this.sprite.setCollideWorldBounds(false); // 맵 감싸기(wrap)로 처리하므로 충돌 경계 불필요
     this._updateHitbox();
 
     // ── 기본 스탯 ──
