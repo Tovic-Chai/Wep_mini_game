@@ -171,4 +171,5 @@ export default class Skill {
     emitter.explode(20);
     scene.time.delayedCall(800, () => emitter.destroy());
   }
+  
 }

@@ -26,6 +26,17 @@ export default class GameScene extends Phaser.Scene {
     this.enemyManager = new EnemyManager(this);
     this.ui = new UI(this, this.player);
 
+    // ESC 일시정지
+    this.isGamePaused = false;
+    this.pauseObjects = [];
+
+    // 트레일러 / 타이틀 화면 씬 이름
+    this.returnSceneKey = 'TitleScene';
+
+    this.input.keyboard.on('keydown-ESC', () => {
+      this.togglePause();
+    });
+
     // ── 카메라 ──
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     this.cameras.main.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
@@ -155,6 +166,7 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (this.isGameOver) return;
     if (this.isLeveling) return;
+    if (this.isGamePaused) return;
 
     const dt = delta / 1000;
     this.gameTime += dt;
@@ -377,7 +389,12 @@ export default class GameScene extends Phaser.Scene {
       if (
         cardDef.includes('fireball') ||
         cardDef.includes('lightning') ||
-        cardDef.includes('orbit')
+        cardDef.includes('orbit') ||
+        cardDef.includes('poison') ||
+        cardDef.includes('ice') ||
+        cardDef.includes('laser') ||
+        cardDef.includes('blade') ||
+        cardDef.includes('drone')
       ) {
         let targetLevel = 1;
 
@@ -917,7 +934,7 @@ export default class GameScene extends Phaser.Scene {
     if (p.bulletCount < 3) pool.push('multishot');
 
     // 패시브 무기
-    for (const wType of ['fireball', 'lightning', 'orbit']) {
+    for (const wType of ['fireball', 'lightning', 'orbit', 'poison', 'ice', 'laser', 'blade', 'drone']) {
       const w = p.getPassiveWeapon(wType);
       if (!w) {
         pool.push(`${wType}_unlock`);
@@ -1038,6 +1055,96 @@ export default class GameScene extends Phaser.Scene {
           applyFn: () => { p.addOrUpgradePassiveWeapon('orbit'); }
         };
       }
+      case 'poison_unlock': {
+        return {
+          label: `☠️ 독 장판\n획득!`,
+          iconColor: 0x22cc66,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('poison'); }
+        };
+      }
+
+      case 'poison_upgrade': {
+        const w = p.getPassiveWeapon('poison');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `☠️ 독 장판\nLv${lv}→${lv + 1}`,
+          iconColor: 0x66ff99,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('poison'); }
+        };
+      }
+      case 'ice_unlock': {
+        return {
+          label: `❄️ 얼음 파편\n획득!`,
+          iconColor: 0x99ddff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('ice'); }
+        };
+      }
+
+      case 'ice_upgrade': {
+        const w = p.getPassiveWeapon('ice');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `❄️ 얼음 파편\nLv${lv}→${lv + 1}`,
+          iconColor: 0x66ccff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('ice'); }
+        };
+      }
+      case 'laser_unlock': {
+        return {
+          label: `🔷 레이저\n획득!`,
+          iconColor: 0x33ccff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('laser'); }
+        };
+      }
+
+      case 'laser_upgrade': {
+        const w = p.getPassiveWeapon('laser');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `🔷 레이저\nLv${lv}→${lv + 1}`,
+          iconColor: 0x66ddff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('laser'); }
+        };
+      }
+      case 'blade_unlock': {
+        return {
+          label: `🗡️ 검기\n획득!`,
+          iconColor: 0x99eeff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('blade'); }
+        };
+      }
+
+      case 'blade_upgrade': {
+        const w = p.getPassiveWeapon('blade');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `🗡️ 검기\nLv${lv}→${lv + 1}`,
+          iconColor: 0xccf6ff,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('blade'); }
+        };
+      }
+      case 'drone_unlock': {
+        return {
+          label: `🤖 드론\n획득!`,
+          iconColor: 0xffdd66,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('drone'); }
+        };
+      }
+
+      case 'drone_upgrade': {
+        const w = p.getPassiveWeapon('drone');
+        const lv = w ? w.level : 1;
+
+        return {
+          label: `🤖 드론\nLv${lv}→${lv + 1}`,
+          iconColor: 0xffee88,
+          applyFn: () => { p.addOrUpgradePassiveWeapon('drone'); }
+        };
+      }
       default:
         return {
           label: '강화',
@@ -1055,5 +1162,329 @@ export default class GameScene extends Phaser.Scene {
       if (roll <= current) return r;
     }
     return rarities[0];
+  }
+
+  togglePause() {
+    if (this.isGameOver) return;
+    if (this.isLeveling) return;
+
+    if (this.isGamePaused) {
+      this.resumeGame();
+    } else {
+      this.pauseGame();
+    }
+  }
+
+  pauseGame() {
+    if (this.isGamePaused) return;
+
+    this.isGamePaused = true;
+
+    // 물리 멈춤
+    this.physics.world.pause();
+
+    // 현재 움직임 멈춤
+    if (this.player && this.player.sprite && this.player.sprite.body) {
+      this.player.sprite.body.setVelocity(0, 0);
+    }
+
+    // 애니메이션 / 트윈 멈춤
+    if (this.anims) this.anims.pauseAll();
+    if (this.tweens) this.tweens.pauseAll();
+
+    // 타이머 멈춤
+    if (this.time) this.time.paused = true;
+
+    this.showPauseOverlay();
+  }
+
+  resumeGame() {
+    if (!this.isGamePaused) return;
+
+    this.isGamePaused = false;
+
+    this.hidePauseOverlay();
+
+    // 타이머 재개
+    if (this.time) this.time.paused = false;
+
+    // 트윈 / 애니메이션 재개
+    if (this.tweens) this.tweens.resumeAll();
+    if (this.anims) this.anims.resumeAll();
+
+    // 물리 재개
+    this.physics.world.resume();
+  }
+
+  showPauseOverlay() {
+    this.hidePauseOverlay();
+
+    const cam = this.cameras.main;
+    const W = cam.width;
+    const H = cam.height;
+    const cx = W / 2;
+    const cy = H / 2;
+
+    const bg = this.add.rectangle(cx, cy, W, H, 0x000000, 0.72)
+      .setDepth(1000)
+      .setScrollFactor(0);
+
+    const glowPanel = this.add.rectangle(cx, cy, 560, 540, 0x0ea5e9, 0.16)
+      .setDepth(1001)
+      .setScrollFactor(0);
+    glowPanel.setStrokeStyle(4, 0x38bdf8, 0.45);
+
+    const panel = this.add.rectangle(cx, cy, 520, 500, 0x0f172a, 0.97)
+      .setDepth(1002)
+      .setScrollFactor(0);
+    panel.setStrokeStyle(3, 0x7dd3fc, 0.95);
+
+    const topLine = this.add.rectangle(cx, cy - 232, 380, 3, 0x38bdf8, 0.9)
+      .setDepth(1003)
+      .setScrollFactor(0);
+
+    const bottomLine = this.add.rectangle(cx, cy + 232, 380, 3, 0x38bdf8, 0.45)
+      .setDepth(1003)
+      .setScrollFactor(0);
+
+    const leftDot = this.add.circle(cx - 220, cy - 232, 7, 0x93c5fd, 0.95)
+      .setDepth(1004)
+      .setScrollFactor(0);
+
+    const rightDot = this.add.circle(cx + 220, cy - 232, 7, 0x93c5fd, 0.95)
+      .setDepth(1004)
+      .setScrollFactor(0);
+
+    const title = this.add.text(cx, cy - 185, 'PAUSED', {
+      fontSize: '42px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#38bdf8',
+      strokeThickness: 4
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const subTitle = this.add.text(cx, cy - 145, '일시정지', {
+      fontSize: '22px',
+      color: '#bae6fd',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const desc = this.add.text(cx, cy - 115, 'ESC를 다시 누르면 게임을 이어합니다', {
+      fontSize: '16px',
+      color: '#cbd5e1'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const infoBox = this.add.rectangle(cx, cy - 95, 360, 36, 0x020617, 0.75)
+      .setDepth(1004)
+      .setScrollFactor(0);
+    infoBox.setStrokeStyle(1, 0x334155, 0.9);
+
+    const infoText = this.add.text(cx, cy - 95, '이동: WASD / 스킬: Q E C / 일시정지: ESC', {
+      fontSize: '14px',
+      color: '#94a3b8'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const skillBox = this.add.rectangle(cx, cy + 40, 420, 220, 0x020617, 0.82)
+      .setDepth(1004)
+      .setScrollFactor(0);
+    skillBox.setStrokeStyle(2, 0x334155, 0.95);
+
+    const activeTitle = this.add.text(cx - 120, cy - 55, '액티브 스킬', {
+      fontSize: '18px',
+      color: '#7dd3fc',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const passiveTitle = this.add.text(cx + 120, cy - 55, '패시브 레벨', {
+      fontSize: '18px',
+      color: '#7dd3fc',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1005).setScrollFactor(0);
+
+    const divider = this.add.rectangle(cx, cy + 20, 2, 150, 0x334155, 1)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    const activeText = this.add.text(cx - 185, cy - 25, this.getPauseActiveSkillText(), {
+      fontSize: '16px',
+      color: '#e2e8f0',
+      lineSpacing: 8
+    }).setOrigin(0, 0).setDepth(1005).setScrollFactor(0);
+
+    const passiveText = this.add.text(cx + 20, cy - 25, this.getPausePassiveSkillText(), {
+      fontSize: '16px',
+      color: '#e2e8f0',
+      lineSpacing: 6
+    }).setOrigin(0, 0).setDepth(1005).setScrollFactor(0);
+
+    const resumeBtn = this.createPauseButton(
+      cx,
+      cy + 175,
+      '이어하기',
+      0x2563eb,
+      0x1d4ed8,
+      () => {
+        this.resumeGame();
+      }
+    );
+
+    const trailerBtn = this.createPauseButton(
+      cx,
+      cy + 228,
+      '다시하기',
+      0x7c2d12,
+      0x9a3412,
+      () => {
+        this.goToTrailerScene();
+      }
+    );
+
+    this.tweens.add({
+      targets: [glowPanel, leftDot, rightDot],
+      alpha: 0.35,
+      duration: 650,
+      yoyo: true,
+      repeat: -1
+    });
+
+    this.pauseObjects.push(
+      bg,
+      glowPanel,
+      panel,
+      topLine,
+      bottomLine,
+      leftDot,
+      rightDot,
+      title,
+      subTitle,
+      desc,
+      infoBox,
+      infoText,
+      skillBox,
+      activeTitle,
+      passiveTitle,
+      divider,
+      activeText,
+      passiveText,
+      ...resumeBtn,
+      ...trailerBtn
+    );
+  }
+
+  createPauseButton(x, y, label, baseColor, hoverColor, callback) {
+    const shadow = this.add.rectangle(x + 4, y + 5, 250, 46, 0x000000, 0.35)
+      .setDepth(1005)
+      .setScrollFactor(0);
+
+    const box = this.add.rectangle(x, y, 250, 46, baseColor, 1)
+      .setDepth(1006)
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
+
+    box.setStrokeStyle(2, 0xffffff, 0.55);
+
+    const shine = this.add.rectangle(x, y - 13, 220, 5, 0xffffff, 0.18)
+      .setDepth(1007)
+      .setScrollFactor(0);
+
+    const text = this.add.text(x, y, label, {
+      fontSize: '19px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    })
+      .setOrigin(0.5)
+      .setDepth(1008)
+      .setScrollFactor(0);
+
+    const hoverOn = () => {
+      box.setFillStyle(hoverColor, 1);
+      box.setScale(1.04);
+      shadow.setScale(1.04);
+      shine.setScale(1.04, 1);
+    };
+
+    const hoverOff = () => {
+      box.setFillStyle(baseColor, 1);
+      box.setScale(1);
+      shadow.setScale(1);
+      shine.setScale(1);
+    };
+
+    box.on('pointerover', hoverOn);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerover', hoverOn);
+
+    box.on('pointerout', hoverOff);
+    text.on('pointerout', hoverOff);
+
+    box.on('pointerdown', callback);
+    text.on('pointerdown', callback);
+
+    return [shadow, box, shine, text];
+  }
+
+  goToTrailerScene() {
+    // 멈춘 것들 먼저 다시 풀어주기
+    this.isGamePaused = false;
+
+    if (this.time) this.time.paused = false;
+    if (this.tweens) this.tweens.resumeAll();
+    if (this.anims) this.anims.resumeAll();
+    if (this.physics && this.physics.world) this.physics.world.resume();
+
+    this.hidePauseOverlay();
+
+    // 트레일러 / 타이틀 화면으로 이동
+    this.scene.start(this.returnSceneKey || 'TitleScene');
+  }
+
+  getPauseActiveSkillText() {
+    const slots = ['Q', 'E', 'C'];
+
+    return slots.map(slot => {
+      const skill = this.player?.skills?.[slot];
+      if (!skill) return `${slot} : 없음`;
+      return `${slot} : ${skill.name}  Lv.${skill.level || 1}`;
+    }).join('\n');
+  }
+
+  getPausePassiveSkillText() {
+    const names = {
+      fireball: '파이어볼',
+      lightning: '번개',
+      orbit: '회전 오브',
+      poison: '독 장판',
+      ice: '얼음 파편',
+      laser: '레이저',
+      blade: '검기',
+      drone: '드론'
+    };
+
+    const order = ['fireball', 'lightning', 'orbit', 'poison', 'ice', 'laser', 'blade', 'drone'];
+
+    const lines = [];
+
+    order.forEach(type => {
+      const weapon = this.player?.getPassiveWeapon(type);
+      if (!weapon) return;
+      lines.push(`${names[type]}  Lv.${weapon.level}`);
+    });
+
+    return lines.length > 0 ? lines.join('\n') : '획득한 패시브 없음';
+  }
+
+  hidePauseOverlay() {
+    if (!this.pauseObjects) {
+      this.pauseObjects = [];
+      return;
+    }
+
+    this.pauseObjects.forEach(obj => {
+      if (obj && obj.destroy) {
+        obj.destroy();
+      }
+    });
+
+    this.pauseObjects = [];
   }
 }

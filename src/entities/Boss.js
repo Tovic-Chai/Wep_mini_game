@@ -56,7 +56,22 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._animTimer  = 0;
       this._animFrame  = 0;
       this._animDir    = 'back';
-      this._isCasting  = false;  // 마법진 시전 중 이동 정지 플래그
+      this._isCasting  = false;
+    }
+
+    // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
+    if (kind === 'mini2') {
+      this._animDir   = 'front';
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    // ── 미니보스3 걷기/멈춤 방향 애니메이션 ──
+    if (kind === 'mini3') {
+      this._stopTimer = 0;
+      this._animDir   = 'down';
+      this._animFrame = 0;
+      this._animTimer = 0;
     }
 
     // ── 보스별 특수 패턴 타이머 ──
@@ -64,85 +79,30 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.specialTimer = 0;
     this.teleportTimer = 4;
     this.cloneSprites = [];
-    this.moveLockTimer = 0; // 순간이동 직후 잠깐 이동 정지
 
     // 체력바 (보스 HP 바)
     this._buildHpBar();
   }
 
   // ──────────────────────────────────────────
-  //  미니보스1 방향별 프레임 애니메이션
-  //  down(backward): eye_close→half→open→half 사이클
-  //  up(frontward) : base↔alpha 사이클
-  //  right/left    : eye_close→half→open→half (flipX)
-  // ──────────────────────────────────────────
-  _updateMini1Anim(dt) {
-    const vx = this.sprite.body.velocity.x;
-    const vy = this.sprite.body.velocity.y;
-    const absX = Math.abs(vx);
-    const absY = Math.abs(vy);
-
-    let dir;
-    if (absX > absY) {
-      dir = 'right';
-    } else {
-      dir = vy >= 0 ? 'back' : 'front';
-    }
-
-    if (dir !== this._animDir) {
-      this._animDir   = dir;
-      this._animFrame = 0;
-      this._animTimer = 0;
-    }
-
-    this._animTimer -= dt;
-    if (this._animTimer > 0) return;
-    this._animTimer = 0.22;
-
-    const BACK  = ['mb1_back_close',  'mb1_back_half',  'mb1_back_open',  'mb1_back_half'];
-    const FRONT = ['mb1_front_base',  'mb1_front_alpha'];
-    const RIGHT = ['mb1_right_close', 'mb1_right_half', 'mb1_right_open', 'mb1_right_half'];
-
-    if (dir === 'back') {
-      this._animFrame = (this._animFrame + 1) % BACK.length;
-      this.sprite.setTexture(BACK[this._animFrame]).setFlipX(false);
-    } else if (dir === 'front') {
-      this._animFrame = (this._animFrame + 1) % FRONT.length;
-      this.sprite.setTexture(FRONT[this._animFrame]).setFlipX(false);
-    } else {
-      this._animFrame = (this._animFrame + 1) % RIGHT.length;
-      this.sprite.setTexture(RIGHT[this._animFrame]).setFlipX(vx < 0);
-    }
-
-    // setTexture() resets body size to texture dimensions — restore after every frame change
-    this.sprite.body.setSize(this._bodySize, this._bodySize);
-  }
-
-  // ──────────────────────────────────────────
   //  체력바 생성 (화면 상단 고정)
   // ──────────────────────────────────────────
   _buildHpBar() {
-    const scene = this.scene;
-    const barW = (this.kind === 'final') ? 600 : 400;
-    const barX = 480;
-
-    // 경험치바가 Player.js에서 y = 42에 있으니까,
-    // 미니보스 체력바는 그 아래인 y = 70으로 이동
-    const barY = (this.kind === 'final') ? 28 : 72;
-
-    const label = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
-    const color = (this.kind === 'final') ? 0xff2200 : 0xff6600;
+    const scene  = this.scene;
+    const barW   = (this.kind === 'final') ? 600 : 400;
+    const barX   = 480;
+    // 상단 HUD 패널(y 0~54) 아래에 배치해 타이머·HP 텍스트와 겹치지 않게 한다
+    const barY   = (this.kind === 'final') ? 84 : 76;
+    const label  = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
+    const color  = (this.kind === 'final') ? 0xff2200 : 0xff6600;
 
     this.hpBarBg = scene.add.rectangle(barX, barY, barW + 4, 18, 0x000000)
-      .setScrollFactor(0).setDepth(25).setAlpha(0.8);
+      .setScrollFactor(0).setDepth(45).setAlpha(0.8);
     this.hpBarFill = scene.add.rectangle(barX - barW / 2, barY, barW, 14, color)
-      .setScrollFactor(0).setDepth(26).setOrigin(0, 0.5);
+      .setScrollFactor(0).setDepth(46).setOrigin(0, 0.5);
     this.hpBarLabel = scene.add.text(barX, barY - 18, label, {
-      fontSize: '13px',
-      color: '#ffddaa',
-      stroke: '#000',
-      strokeThickness: 3
-    }).setScrollFactor(0).setDepth(27).setOrigin(0.5);
+      fontSize: '15px', fontStyle: 'bold', color: '#ffddaa', stroke: '#000', strokeThickness: 4
+    }).setScrollFactor(0).setDepth(46).setOrigin(0.5);
 
     this._maxHp = this.hp;
     this._barW = barW;
@@ -170,9 +130,6 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.patternTimer -= dt;
     this.specialTimer -= dt;
     this.teleportTimer -= dt;
-    if (this.moveLockTimer > 0) {
-      this.moveLockTimer -= dt;
-    }
 
     if (this.attackTimer <= 0) {
       // 최종 보스는 페이즈가 올라갈수록 공격이 빨라짐
@@ -244,7 +201,12 @@ export default class Boss extends Phaser.Events.EventEmitter {
       moveSpeed = [null, 60, 85, 110][this.phase] || 60;
     }
 
-    if (this.moveLockTimer > 0 || (this.kind === 'mini1' && this._isCasting)) {
+    // mini3 정지 타이머 차감
+    if (this.kind === 'mini3' && this._stopTimer > 0) this._stopTimer -= dt;
+
+    const mini3Stopped = this.kind === 'mini3' && this._stopTimer > 0;
+
+    if ((this.kind === 'mini1' && this._isCasting) || mini3Stopped) {
       this.sprite.setVelocity(0, 0);
     } else {
       this.sprite.setVelocity(
@@ -254,7 +216,187 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
 
     if (this.kind === 'mini1' && !this._isCasting) this._updateMini1Anim(dt);
+    if (this.kind === 'mini2') this._updateMini2Anim(dt);
+    if (this.kind === 'mini3') this._updateMini3Anim(dt);
     this._updateHpBar();
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스1 방향별 프레임 애니메이션
+  //  down(backward): eye_close→half→open→half 사이클
+  //  up(frontward) : base↔alpha 사이클
+  //  right/left    : eye_close→half→open→half (flipX)
+  // ──────────────────────────────────────────
+  _updateMini1Anim(dt) {
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'back' : 'front';
+    }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+    this._animTimer = 0.22;
+
+    const BACK  = ['mb1_back_close',  'mb1_back_half',  'mb1_back_open',  'mb1_back_half'];
+    const FRONT = ['mb1_front_base',  'mb1_front_alpha'];
+    const RIGHT = ['mb1_right_close', 'mb1_right_half', 'mb1_right_open', 'mb1_right_half'];
+
+    if (dir === 'back') {
+      this._animFrame = (this._animFrame + 1) % BACK.length;
+      this.sprite.setTexture(BACK[this._animFrame]).setFlipX(false);
+    } else if (dir === 'front') {
+      this._animFrame = (this._animFrame + 1) % FRONT.length;
+      this.sprite.setTexture(FRONT[this._animFrame]).setFlipX(false);
+    } else {
+      this._animFrame = (this._animFrame + 1) % RIGHT.length;
+      this.sprite.setTexture(RIGHT[this._animFrame]).setFlipX(vx < 0);
+    }
+
+    // setTexture() resets body size to texture dimensions — restore after every frame change
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스2 방향별 눈 깜빡임 애니메이션
+  //  front(아래): boss_mini2 → half2 → half → close → close2 → close3 → ... → 반복
+  //  right(우): right_open2 → half2 → half → close → ... → 반복  (flipX for left)
+  //  up: up_open → up_half → up_close → up_half → 반복
+  // ──────────────────────────────────────────
+  _updateMini2Anim(dt) {
+    if (!this.sprite?.active) return;
+
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'front' : 'up';
+    }
+
+    // 각 방향 프레임 시퀀스 [텍스처키, 재생시간(초)]
+    // 프레임 0 = 눈 뜬 상태 (길게 유지)
+    const SEQS = {
+      front: [
+        ['boss_mini2',      0],
+        ['mb2_front_half2', 0.08],
+        ['mb2_front_half',  0.08],
+        ['mb2_front_close', 0.12],
+        ['mb2_front_close2',0.10],
+        ['mb2_front_close3',0.10],
+        ['mb2_front_close2',0.08],
+        ['mb2_front_close', 0.08],
+        ['mb2_front_half',  0.08],
+        ['mb2_front_half2', 0.08],
+      ],
+      right: [
+        ['mb2_right_open2', 0],
+        ['mb2_right_half2', 0.08],
+        ['mb2_right_half',  0.08],
+        ['mb2_right_close', 0.18],
+        ['mb2_right_half',  0.08],
+        ['mb2_right_half2', 0.08],
+      ],
+      up: [
+        ['mb2_up_open',  0],
+        ['mb2_up_half',  0.10],
+        ['mb2_up_close', 0.15],
+        ['mb2_up_half',  0.10],
+      ],
+    };
+
+    // 방향 전환 시: 즉시 눈 뜬 프레임 적용 + 홀드 타이머 설정
+    // (타이머만 0으로 리셋하면 다음 틱에 frame 1로 점프해 갭이 생김)
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      const [openKey] = SEQS[dir][0];
+      this.sprite.setTexture(openKey).setFlipX(vx < 0 && dir === 'right');
+      this.sprite.body.setSize(this._bodySize, this._bodySize);
+      this._animTimer = 2.0 + Math.random() * 1.5;
+      return;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+
+    const seq = SEQS[dir];
+    this._animFrame = (this._animFrame + 1) % seq.length;
+    const [key, baseDur] = seq[this._animFrame];
+
+    // 프레임 0으로 돌아오면 눈 뜬 상태를 랜덤 시간 유지
+    const dur = this._animFrame === 0 ? 2.0 + Math.random() * 1.5 : baseDur;
+    this._animTimer = dur;
+
+    this.sprite.setTexture(key).setFlipX(vx < 0 && dir === 'right');
+    // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스3 방향별 걷기/멈춤 애니메이션
+  //  이동 중: 방향별 walk1↔walk2 교체 (0.18s 간격)
+  //  정지 중(_stopTimer > 0): mb3_stop 고정
+  //  좌측 이동: right 텍스처 + flipX
+  // ──────────────────────────────────────────
+  _updateMini3Anim(dt) {
+    if (!this.sprite?.active) return;
+
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
+
+    // 정지 상태: mb3_stop 고정
+    if (this._stopTimer > 0 || !moving) {
+      if (this.sprite.texture.key !== 'mb3_stop') {
+        this.sprite.setTexture('mb3_stop');
+        this.sprite.body.setSize(this._bodySize, this._bodySize);
+      }
+      this._animTimer = 0;
+      return;
+    }
+
+    // 방향 감지
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'down' : 'up';
+    }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+    this._animTimer = 0.18;
+
+    const WALK = {
+      down:  ['mb3_down_walk1',  'mb3_down_walk2'],
+      right: ['mb3_right_walk1', 'mb3_stop', 'mb3_right_walk2', 'mb3_stop'],
+      up:    ['mb3_up_walk1',    'mb3_up_walk2'],
+    };
+
+    const frames = WALK[dir];
+    this._animFrame = (this._animFrame + 1) % frames.length;
+
+    this.sprite.setTexture(frames[this._animFrame]).setFlipX(vx < 0 && dir === 'right');
+    // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
 
   // ──────────────────────────────────────────
@@ -318,26 +460,17 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  원형 탄막
+  //  원형 전방위 탄막 (count발을 360도로 균등 발사)
   // ──────────────────────────────────────────
   fireCirclePattern(count = 16, speed = 120) {
-    if (!this.scene.enemyBullets) return;
-
-    const base = Phaser.Math.DegToRad(this.angleOffset || 0);
-
+    const base = Phaser.Math.DegToRad(this.angleOffset);
     for (let i = 0; i < count; i++) {
       const angle = base + (Math.PI * 2 / count) * i;
-
-      this._spawnBossBullet(
-        this.sprite.x,
-        this.sprite.y,
-        angle,
-        speed,
-        1.1
-      );
+      const bx = this.sprite.x + Math.cos(angle) * 20;
+      const by = this.sprite.y + Math.sin(angle) * 20;
+      this._spawnBossBullet(bx, by, angle, speed, 1.2);
     }
-
-    this.angleOffset += 8;
+    this.angleOffset += 10;
   }
 
   // ──────────────────────────────────────────
@@ -392,9 +525,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this._isCasting = true;
     _applyFrame('mb1_cast1');
 
-    scene.time.delayedCall(350,  () => _applyFrame('mb1_cast2'));
-    scene.time.delayedCall(650,  () => _applyFrame('mb1_cast3'));
-    scene.time.delayedCall(900,  () => _applyFrame('mb1_cast4'));
+    scene.time.delayedCall(350, () => _applyFrame('mb1_cast2'));
+    scene.time.delayedCall(650, () => _applyFrame('mb1_cast3'));
+    // mb1_cast4 파일이 투명(6892b)이라 사용 안 함 — cast3를 유지
 
     // 마법진 종료(약 6300ms) 후 이동 재개 + 방향 애니메이션 복원
     scene.time.delayedCall(6300, () => {
@@ -690,8 +823,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
   castBlackhole() {
     const scene = this.scene;
     const player = scene.player;
-
-    if (!player || !player.sprite || !player.sprite.active || !player.sprite.body) return;
+    if (!player || !player.sprite) return;
 
     const x = player.sprite.x + Phaser.Math.Between(-120, 120);
     const y = player.sprite.y + Phaser.Math.Between(-90, 90);
@@ -712,7 +844,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       delay: 50,
       repeat: 50,
       callback: () => {
-        if (!hole.active || !player.sprite || !player.sprite.active || !player.sprite.body) return;
+        if (!hole.active || !player.sprite.active) return;
 
         const px = player.sprite.x;
         const py = player.sprite.y;
@@ -762,6 +894,23 @@ export default class Boss extends Phaser.Events.EventEmitter {
   summonClones() {
     const scene = this.scene;
 
+    // 분신 소환 전 잠깐 멈추는 모션 (mini3 전용)
+    if (this.kind === 'mini3') {
+      this._stopTimer = 2.0;
+      if (this.sprite?.active) {
+        // 소환 예고: 약간 스케일 업 후 복귀
+        scene.tweens.add({
+          targets: this.sprite,
+          scaleX: this._baseScale * 1.15,
+          scaleY: this._baseScale * 1.15,
+          duration: 200,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.InOut'
+        });
+      }
+    }
+
     this.cloneSprites.forEach(c => {
       if (c && c.active) c.destroy();
     });
@@ -807,17 +956,19 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  미니보스 3: 플레이어 주변으로 순간이동
+  //  미니보스 3: 순간이동
   // ──────────────────────────────────────────
   teleportNearPlayer() {
     const scene = this.scene;
     const player = scene.player;
     if (!player || !player.sprite) return;
 
+    // 순간이동 직전 잠깐 멈춤
+    this._stopTimer = 0.5;
+
     const oldX = this.sprite.x;
     const oldY = this.sprite.y;
 
-    // 사라지는 이펙트
     const flash1 = scene.add.circle(oldX, oldY, 50, 0xaa44ff, 0.45)
       .setDepth(5);
 
@@ -826,59 +977,24 @@ export default class Boss extends Phaser.Events.EventEmitter {
       alpha: 0,
       scale: 1.8,
       duration: 250,
-      onComplete: () => {
-        if (flash1.active) flash1.destroy();
-      }
+      onComplete: () => flash1.destroy()
     });
 
-    // 플레이어에게 너무 가까이 안 붙도록 거리 증가
-    const minDist = 400;
-    const maxDist = 500;
-
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const dist = Phaser.Math.Between(minDist, maxDist);
+    const dist = Phaser.Math.Between(180, 260);
 
-    const targetX = player.sprite.x + Math.cos(angle) * dist;
-    const targetY = player.sprite.y + Math.sin(angle) * dist;
+    this.sprite.x = player.sprite.x + Math.cos(angle) * dist;
+    this.sprite.y = player.sprite.y + Math.sin(angle) * dist;
 
-    // 순간이동 위치 예고 표시
-    const warning = scene.add.circle(targetX, targetY, 42, 0xaa44ff, 0.16)
-      .setStrokeStyle(3, 0xdd99ff, 0.9)
+    const flash2 = scene.add.circle(this.sprite.x, this.sprite.y, 50, 0xaa44ff, 0.45)
       .setDepth(5);
 
     scene.tweens.add({
-      targets: warning,
-      alpha: 0.45,
-      scale: 1.25,
-      duration: 180,
-      yoyo: true,
-      repeat: 1
-    });
-
-    scene.time.delayedCall(320, () => {
-      if (warning.active) warning.destroy();
-
-      // 실제 순간이동
-      this.sprite.x = targetX;
-      this.sprite.y = targetY;
-
-      // 순간이동 직후 바로 돌진하지 않게 잠깐 정지
-      this.moveLockTimer = 0.55;
-      this.sprite.setVelocity(0, 0);
-
-      // 나타나는 이펙트
-      const flash2 = scene.add.circle(this.sprite.x, this.sprite.y, 55, 0xaa44ff, 0.45)
-        .setDepth(5);
-
-      scene.tweens.add({
-        targets: flash2,
-        alpha: 0,
-        scale: 1.8,
-        duration: 280,
-        onComplete: () => {
-          if (flash2.active) flash2.destroy();
-        }
-      });
+      targets: flash2,
+      alpha: 0,
+      scale: 1.8,
+      duration: 250,
+      onComplete: () => flash2.destroy()
     });
   }
 

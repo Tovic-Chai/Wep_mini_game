@@ -35,12 +35,41 @@ export default class EnemyManager {
   // ★ 플레이어 주위 360도 어디서나 스폰 (화면 가장자리 바로 바깥)
   spawnEnemy(gameTime) {
     let type = 'M01';
-    if (gameTime > 60) type = Phaser.Math.RND.pick(['M01', 'M02']);
-    if (gameTime > 120) type = Phaser.Math.RND.pick(['M01', 'M02', 'M03']);
+
+    // 1분 이후: M02 등장
+    if (gameTime > 60) {
+      type = Phaser.Math.RND.pick(['M01', 'M02']);
+    }
+
+    // 2분 이후: M03 등장
+    if (gameTime > 120) {
+      type = Phaser.Math.RND.pick(['M01', 'M02', 'M03']);
+    }
+
+    // 3분 이후: M04, M05 등장
+    if (gameTime > 180) {
+      type = Phaser.Math.RND.pick(['M01', 'M02', 'M03', 'M04', 'M05']);
+    }
+
+    // 4분 이후: M06 등장
+    if (gameTime > 240) {
+      type = Phaser.Math.RND.pick(['M02', 'M03', 'M04', 'M05', 'M06']);
+    }
+
+    // 5분 이후: M07 등장
+    if (gameTime > 300) {
+      type = Phaser.Math.RND.pick(['M03', 'M04', 'M05', 'M06', 'M07']);
+    }
+
+    // 6분 이후: M08 등장
+    if (gameTime > 360) {
+      type = Phaser.Math.RND.pick(['M04', 'M05', 'M06', 'M07', 'M08']);
+    }
 
     const player = this.scene.player.sprite;
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    // 화면 대각선 길이가 약 577px, 안전하게 600px 거리에 스폰
+
+    // 화면 밖에서 등장
     const distance = 600;
     const x = player.x + Math.cos(angle) * distance;
     const y = player.y + Math.sin(angle) * distance;

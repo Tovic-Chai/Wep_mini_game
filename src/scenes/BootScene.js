@@ -3,13 +3,36 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     // ── 보스 이미지 ──
-    this.load.image('player',            'assets/images/player1.png');
-    this.load.image('boss_mini1',        'assets/images/mini_boss_1.png');
-    this.load.image('boss_mini2',        'assets/images/mini_boss_2.png');
-    this.load.image('boss_mini3',        'assets/images/mini_boss_3.png');
+    this.load.image('player', 'assets/images/player1.png');
+    this.load.image('boss_mini1', 'assets/images/mini_boss_1.png');
+    this.load.image('boss_mini2', 'assets/images/mini_boss_2.png');
+    this.load.image('boss_mini3', 'assets/images/mini_boss_3.png');
     this.load.image('boss_final_phase1', 'assets/images/boss_phase_1.png');
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
+
+    // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
+    // 아래 방향 (후면 = 카메라 향해 걷기)
+    this.load.image('player_down_idle', 'assets/images/player_down_idle.png');
+    this.load.image('player_down_r1', 'assets/images/player_down_r1.png');
+    this.load.image('player_down_r2', 'assets/images/player_down_r2.png');
+    this.load.image('player_down_l1', 'assets/images/player_down_l1.png');
+    this.load.image('player_down_l2', 'assets/images/player_down_l2.png');
+    // 위 방향 (정면 = 카메라 등지고 걷기)
+    this.load.image('player_up_idle', 'assets/images/player_up_idle.png');
+    this.load.image('player_up_r1', 'assets/images/player_up_r1.png');
+    this.load.image('player_up_r2', 'assets/images/player_up_r2.png');
+    this.load.image('player_up_l1', 'assets/images/player_up_l1.png');
+    this.load.image('player_up_l2', 'assets/images/player_up_l2.png');
+    // 좌우 방향 (측면, 왼쪽은 flipX로 처리)
+    this.load.image('player_side_idle', 'assets/images/player_side_idle.png');
+    this.load.image('player_side_r1', 'assets/images/player_side_r1.png');
+    this.load.image('player_side_r2', 'assets/images/player_side_r2.png');
+
+    // 자산 로드 실패해도 게임이 죽지 않도록
+    this.load.on('loaderror', (file) => {
+      console.warn('자산 로드 실패 (무시):', file.src);
+    });
 
     // ── 미니보스1 방향별 애니메이션 ──
     this.load.image('mb1_front_base',  'assets/images/mini_boss1_frontward_base.png');
@@ -27,24 +50,31 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('mb1_cast3', 'assets/images/mini_boss_pattern_1_3.png');
     this.load.image('mb1_cast4', 'assets/images/mini_boss_pattern_1_4.png');
 
-    // ── 플레이어 4방향 걷기 애니메이션 (idle + 2-프레임 걷기) ──
-    // 아래 방향 (후면 = 카메라 향해 걷기)
-    this.load.image('player_down_idle', 'assets/images/후면_서있기.png');
-    this.load.image('player_down_r1',   'assets/images/후면_오른발앞_걷기.png');
-    this.load.image('player_down_r2',   'assets/images/후면_오른발앞_달리기.png');
-    // 위 방향 (정면 = 카메라 등지고 걷기)
-    this.load.image('player_up_idle',   'assets/images/정면_서있기.png');
-    this.load.image('player_up_r1',     'assets/images/정면_오른발_앞으로.png');
-    this.load.image('player_up_r2',     'assets/images/정면_오른발_많이_앞으로.png');
-    // 좌우 방향 (측면, 왼쪽은 flipX로 처리)
-    this.load.image('player_side_idle', 'assets/images/오른쪽으로_걷기_서있는_상태.png');
-    this.load.image('player_side_r1',   'assets/images/오른쪽으로_걷기_작게.png');
-    this.load.image('player_side_r2',   'assets/images/오른쪽으로_걷기_크게.png');
+    // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
+    // front(아래) 방향 — open 상태는 boss_mini2 기본 텍스처 사용 (fornt_eye_open.png 는 빈 파일)
+    this.load.image('mb2_front_half2',  'assets/images/mini_boss2_fornt_eye_half2.png');
+    this.load.image('mb2_front_half',   'assets/images/mini_boss2_fornt_eye_half.png');
+    this.load.image('mb2_front_close',  'assets/images/mini_boss2_fornt_eye_close.png');
+    this.load.image('mb2_front_close2', 'assets/images/mini_boss2_fornt_eye_close2.png');
+    this.load.image('mb2_front_close3', 'assets/images/mini_boss2_fornt_eye_close3.png');
+    // right 방향 — open2 사용 (right_eye_open.png 는 빈 파일)
+    this.load.image('mb2_right_open2',  'assets/images/mini_boss2_right_eye_open2.png');
+    this.load.image('mb2_right_half2',  'assets/images/mini_boss2_right_eye_half2.png');
+    this.load.image('mb2_right_half',   'assets/images/mini_boss2_right_eye_half.png');
+    this.load.image('mb2_right_close',  'assets/images/mini_boss2_right_eye_close.png');
+    // up 방향
+    this.load.image('mb2_up_open',  'assets/images/mini_boss2_up_eye_open.png');
+    this.load.image('mb2_up_half',  'assets/images/mini_boss2_up_eye_half.png');
+    this.load.image('mb2_up_close', 'assets/images/mini_boss2_up_eye_close.png');
 
-    // 자산 로드 실패해도 게임이 죽지 않도록
-    this.load.on('loaderror', (file) => {
-      console.warn('자산 로드 실패 (무시):', file.src);
-    });
+    // ── 미니보스3 걷기/멈춤 애니메이션 ──
+    this.load.image('mb3_down_walk1',  'assets/images/mini_boss3_down_walk1.png');
+    this.load.image('mb3_down_walk2',  'assets/images/mini_boss3_down_walk2.png');
+    this.load.image('mb3_right_walk1', 'assets/images/mini_boss3_right_walk1.png');
+    this.load.image('mb3_right_walk2', 'assets/images/mini_boss3_right_walk2.png');
+    this.load.image('mb3_up_walk1',    'assets/images/mini_boss3_up_walk.png');
+    this.load.image('mb3_up_walk2',    'assets/images/mini_boss3_up_walk2.png');
+    this.load.image('mb3_stop',        'assets/images/mini_boss3_left_stop.png');
   }
 
   create() {
@@ -156,10 +186,13 @@ export default class BootScene extends Phaser.Scene {
     g.generateTexture('exp_orb', 12, 12);
     g.destroy();
 
+    // 여기 추가
+    this.generatePixelWeaponTextures();
+
     // ── 10) 배경 3중 (별 밀도 다르게) ──
-    this.makeStarTexture('bg_space_far',  960, 640, 200, 1, true);
-    this.makeStarTexture('bg_space_mid',  960, 640,  60, 2, false);
-    this.makeStarTexture('bg_space_near', 960, 640,  25, 3, false);
+    this.makeStarTexture('bg_space_far', 960, 640, 200, 1, true);
+    this.makeStarTexture('bg_space_mid', 960, 640, 60, 2, false);
+    this.makeStarTexture('bg_space_near', 960, 640, 25, 3, false);
   }
 
   makeStarTexture(key, w, h, count, radius, opaque) {
@@ -169,13 +202,156 @@ export default class BootScene extends Phaser.Scene {
       g.fillRect(0, 0, w, h);
     }
     for (let i = 0; i < count; i++) {
-      const x     = Phaser.Math.Between(0, w);
-      const y     = Phaser.Math.Between(0, h);
+      const x = Phaser.Math.Between(0, w);
+      const y = Phaser.Math.Between(0, h);
       const alpha = Phaser.Math.FloatBetween(0.4, 1);
       g.fillStyle(0xffffff, alpha);
       g.fillCircle(x, y, radius);
     }
     g.generateTexture(key, w, h);
+    g.destroy();
+  }
+
+  generatePixelWeaponTextures() {
+    // 플레이어 총알
+    this.makePixelTexture('bullet', [
+      '..11..',
+      '.1221.',
+      '123321',
+      '.1221.',
+      '..11..'
+    ], {
+      '1': 0x5ee7ff,
+      '2': 0x1fb6d9,
+      '3': 0xffffff
+    }, 3);
+
+    // 파이어볼
+    this.makePixelTexture('fireball', [
+      '...11...',
+      '..1221..',
+      '.123321.',
+      '12344321',
+      '.123321.',
+      '..1221..',
+      '...11...'
+    ], {
+      '1': 0xff6a00,
+      '2': 0xff9900,
+      '3': 0xffdd55,
+      '4': 0xffffff
+    }, 4);
+
+    // 회전 오브
+    this.makePixelTexture('orbit_orb', [
+      '..111..',
+      '.12221.',
+      '1233321',
+      '1234321',
+      '1233321',
+      '.12221.',
+      '..111..'
+    ], {
+      '1': 0x0d4ea6,
+      '2': 0x27a7ff,
+      '3': 0x8de8ff,
+      '4': 0xffffff
+    }, 3);
+
+    // 얼음 파편
+    this.makePixelTexture('ice_shard', [
+      '................',
+      '..11............',
+      '.1221...........',
+      '1233211.........',
+      '1234332211......',
+      '123444333221111.',
+      '1234332211......',
+      '1233211.........',
+      '.1221...........',
+      '..11............',
+      '................'
+    ], {
+      '1': 0x55cfff,
+      '2': 0xa6efff,
+      '3': 0xe7fdff,
+      '4': 0xffffff
+    }, 4);
+
+    // 드론 코어
+    this.makePixelTexture('drone_core', [
+      '..1111..',
+      '.122221.',
+      '12344321',
+      '12455421',
+      '12344321',
+      '.122221.',
+      '..1111..'
+    ], {
+      '1': 0x334155,
+      '2': 0x60a5fa,
+      '3': 0xcbd5e1,
+      '4': 0x0f172a,
+      '5': 0xffffff
+    }, 4);
+
+    // 드론 총알
+    this.makePixelTexture('drone_bullet', [
+      '.11.',
+      '1221',
+      '1221',
+      '.11.'
+    ], {
+      '1': 0xf59e0b,
+      '2': 0xffffff
+    }, 4);
+
+    // 검기
+    this.makePixelTexture('blade_crescent', [
+      '.........1111.............',
+      '.........11122111..........',
+      '........1233222111.......',
+      '.......1233322211.....',
+      '......1234333221....',
+      '........4443321...',
+      '...........44321...',
+      '.............44321...',
+      '...........44321...',
+      '........4443321...',
+      '......1234333221....',
+      '.......1233322211.....',
+      '........1233222111.......',
+      '.........11122111..........',
+      '.........1111.............'
+    ], {
+      '1': 0xdbeafe,
+      '2': 0x93c5fd,
+      '3': 0x60a5fa,
+      '4': 0xffffff
+    }, 4);
+  }
+
+  makePixelTexture(key, rows, palette, pixelSize = 4) {
+    if (this.textures.exists(key)) return;
+
+    const g = this.add.graphics();
+    const h = rows.length;
+    const w = rows[0].length;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const ch = rows[y][x];
+        if (ch === '.') continue;
+
+        const color = palette[ch];
+        if (!color) continue;
+
+        g.fillStyle(color, 1);
+        g.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+      }
+    }
+
+    g.generateTexture(key, w * pixelSize, h * pixelSize);
     g.destroy();
   }
 }
