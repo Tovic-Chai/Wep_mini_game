@@ -19,6 +19,15 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
 
+    // ── 메인보스 방향별 이미지 + 스킬 이미지 ──
+    this.load.image('main_boss_down',       'assets/images/main_boss_down.png');
+    this.load.image('main_boss_up',         'assets/images/main_boss_up.png');
+    this.load.image('main_boss_right',      'assets/images/main_boss_right.png');
+    this.load.image('boss_skill_blackhole', 'assets/images/main_boss_blackholl.png');
+    this.load.image('boss_skill_clock',     'assets/images/main_boss_clock.png');
+    this.load.image('boss_skill_light',     'assets/images/main_boss_light.png');
+    this.load.image('boss_skill_mirror',    'assets/images/main_boss_borken_mirror.png');
+
     // ── 플레이어 4방향 걷기 애니메이션 (assets/images/ 에 파일 위치) ──
     // 아래 방향 (후면 = 카메라 향해 걷기)
     this.load.image('player_down_idle', 'assets/images/player_down_idle.png');
