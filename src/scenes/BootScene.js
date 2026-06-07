@@ -3,8 +3,10 @@ export default class BootScene extends Phaser.Scene {
 
   preload() {
     // ── 몬스터 이미지 ──
-    this.load.image('enemy',     'assets/images/monster1.png');
-    this.load.image('enemy_m02', 'assets/images/monster2.png');
+    this.load.image('enemy',          'assets/images/monster1.png');
+    this.load.image('enemy_m02',      'assets/images/monster2.png');
+    this.load.image('enemy_m03_front','assets/images/monster3_front.png');
+    this.load.image('enemy_m03_right','assets/images/monster3_right.png');
 
     // ── 보스 이미지 ──
     this.load.image('player', 'assets/images/player1.png');

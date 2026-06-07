@@ -7,7 +7,7 @@ export default class Enemy {
     const textureKey = {
       M01: 'enemy',
       M02: 'enemy_m02',
-      M03: 'enemy_m03'
+      M03: 'enemy_m03_front'
     }[type] || 'enemy';
 
     this.sprite = scene.physics.add.sprite(x, y, textureKey)
@@ -63,6 +63,7 @@ export default class Enemy {
     this.contactDmg = Math.round(base.dmg * dmgFactor);
     this.alive = true;
     this.lifetime = 0;
+    if (type === 'M03') this._m03TexKey = 'enemy_m03_front';
   }
 
   update(dt) {
@@ -95,6 +96,20 @@ export default class Enemy {
     if (this.type === 'M01' || this.type === 'M02') {
       const vx = this.sprite.body.velocity.x;
       if (Math.abs(vx) > 5) this.sprite.setFlipX(vx > 0);
+    }
+
+    // M03 방향별 텍스처 전환 (front/right)
+    if (this.type === 'M03') {
+      const vx = this.sprite.body.velocity.x;
+      const vy = this.sprite.body.velocity.y;
+      const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
+      const newKey = (moving && Math.abs(vx) > Math.abs(vy)) ? 'enemy_m03_right' : 'enemy_m03_front';
+      const newFlip = newKey === 'enemy_m03_right' && vx < 0;
+      if (newKey !== this._m03TexKey || this.sprite.flipX !== newFlip) {
+        this._m03TexKey = newKey;
+        this.sprite.setTexture(newKey).setFlipX(newFlip).setDisplaySize(40, 40);
+        this.sprite.body.setSize(36, 36);
+      }
     }
 
     // 너무 멀어지면 디스폰
