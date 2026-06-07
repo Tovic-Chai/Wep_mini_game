@@ -184,12 +184,12 @@ export default class GameScene extends Phaser.Scene {
     this.player.update(dt, this.cursors, this.keys);
     this.enemyManager.update(dt, this.gameTime);
 
-    // ── 보스 스폰 타임라인 (스펙 기준) ──
-    // 2:00 미니보스 1 → Q 스킬 획득
-    // 4:00 미니보스 2 → E 스킬 획득
-    // 6:00 미니보스 3 → C 스킬 획득
-    // 8:00 메인보스
-    if (this.spawnedMiniBosses < 1 && this.gameTime >= 10) this.spawnMiniBoss(1);
+    // ── 보스 스폰 타임라인 (카운트다운 10분 기준) ──
+    // 8분 남을 때(2분 경과) 미니보스 1 → Q 스킬 획득
+    // 6분 남을 때(4분 경과) 미니보스 2 → E 스킬 획득
+    // 4분 남을 때(6분 경과) 미니보스 3 → R 스킬 획득
+    // 2분 남을 때(8분 경과) 메인보스
+    if (this.spawnedMiniBosses < 1 && this.gameTime >= 120) this.spawnMiniBoss(1);
     if (this.spawnedMiniBosses < 2 && this.gameTime >= 240) this.spawnMiniBoss(2);
     if (this.spawnedMiniBosses < 3 && this.gameTime >= 360) this.spawnMiniBoss(3);
     if (!this.boss && this.gameTime >= 480) this.spawnMainBoss();
