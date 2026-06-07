@@ -31,17 +31,17 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // 보스별 스탯 및 획득 스킬
     const configs = {
-      mini1: { hp: 1200, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
-      mini2: { hp: 2000, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
-      mini3: { hp: 3200, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
-      final: { hp: 12000, skill: null }
+      mini1: { hp: 480, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
+      mini2: { hp: 800, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
+      mini3: { hp: 1280, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
+      final: { hp: 4800, skill: null }
     };
 
     const cfg = configs[kind] || configs.mini1;
 
-    // 플레이어 레벨 비례 HP 스케일 (최소 1.4배)
+    // 플레이어 레벨 비례 HP 스케일
     const playerLevel = scene.player?.level || 1;
-    const hpScale = Math.max(1.4, 1 + (playerLevel - 1) * 0.22);
+    const hpScale = 1 + (playerLevel - 1) * 0.22;
     this.hp = Math.floor(cfg.hp * hpScale);
     this.skill = cfg.skill;
 
