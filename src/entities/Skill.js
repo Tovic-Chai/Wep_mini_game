@@ -17,157 +17,206 @@ export default class Skill {
     }
   }
 
-  // ── 시간 슬로우 ──
+  // ── 시간 슬로우: 적만 슬로우, 플레이어는 정상 속도 ──
   applyTimeSlow(player) {
     const scene = this.scene;
-    scene.time.timeScale = 0.45;
-    scene.tweens.timeScale = 0.45;
+    const slowScale = 0.25;
+    const duration  = this.duration * 1000;
+
     scene.cameras.main.flash(200, 200, 200, 255);
 
-    // 화면 테두리 파란색 (시간 슬로우 시각 표시)
+    // 테두리 표시
     const border = scene.add.rectangle(480, 320, 960, 640, 0x0000ff, 0)
       .setStrokeStyle(6, 0x4488ff, 0.6).setScrollFactor(0).setDepth(60);
 
-    scene.time.delayedCall(this.duration * 1000 / 0.45, () => {
-      scene.time.timeScale = 1;
-      scene.tweens.timeScale = 1;
+    // 적(Enemy) 속도 저장 후 슬로우
+    const slowed = [];
+    const applyToEnemy = (sprite) => {
+      if (!sprite.active || !sprite.parentRef) return;
+      const e = sprite.parentRef;
+      if (e._slowedSpeed !== undefined) return; // 이미 슬로우 중
+      e._slowedSpeed = e.speed;
+      e.speed = e.speed * slowScale;
+      slowed.push(e);
+    };
+    if (scene.enemyManager?.group)    scene.enemyManager.group.children.each(applyToEnemy);
+    if (scene.enemyManager?.bossGroup) scene.enemyManager.bossGroup.children.each(applyToEnemy);
+
+    // 보스 탄도 느리게
+    scene.enemyBullets?.children.each(b => {
+      if (!b.active || !b.body) return;
+      b.body.velocity.x *= slowScale;
+      b.body.velocity.y *= slowScale;
+      b._slowed = true;
+    });
+
+    // 해제
+    scene.time.delayedCall(duration, () => {
+      slowed.forEach(e => {
+        if (e._slowedSpeed !== undefined) {
+          e.speed = e._slowedSpeed;
+          delete e._slowedSpeed;
+        }
+      });
+      // 탄 속도 복구는 안 함(탄이 이미 날아갔거나 사라짐)
       if (border.active) border.destroy();
     });
   }
 
-  // ── 블랙홀 ──
+  // ── 블랙홀: 플레이어 위치 중심, 지속 흡인, 반경 250px ──
   applyBlackhole(player) {
     const scene = this.scene;
     const x = player.sprite.x;
-    const y = player.sprite.y - 80;
-
-    // 적 끌어당기기
-    if (scene.enemyManager && scene.enemyManager.group) {
-      scene.enemyManager.group.children.each(e => {
-        if (!e.active) return;
-        scene.physics.moveToObject(e, { x, y }, 220);
-      });
-    }
-
-    // 메인보스 제외, 주변 적 탄 소멸
-    scene.enemyBullets && scene.enemyBullets.children.each(b => {
-      if (!b.active) return;
-      const dx = b.x - x, dy = b.y - y;
-      if (Math.hypot(dx, dy) < 300) b.destroy();
-    });
-
-    // 파티클 블랙홀 효과
-    const emitter = scene.add.particles(x, y, 'particle_star', {
-      speed: { min: -120, max: 120 },
-      scale: { start: 1.2, end: 0 },
-      lifespan: 700,
-      frequency: 30
-    });
-    scene.time.delayedCall(this.duration * 1000, () => emitter.destroy());
+    const y = player.sprite.y;
+    const pullRadius  = 320;  // 흡인 감지 반경
+    const visualMax   = 200;  // 원 최대 반경
+    const duration    = this.duration * 1000;
 
     // 블랙홀 원 시각화
-    const circle = scene.add.circle(x, y, 60, 0x220044, 0.7).setDepth(15);
-    scene.tweens.add({
-      targets: circle, radius: 100, alpha: 0,
-      duration: this.duration * 1000,
-      onComplete: () => circle.destroy()
+    const circle = scene.add.circle(x, y, 15, 0x110022, 0.92)
+      .setDepth(1).setStrokeStyle(5, 0xaa44ff, 1.0);
+    scene.tweens.add({ targets: circle, radius: visualMax, duration: 500, ease: 'Back.Out' });
+
+    // 파티클
+    const emitter = scene.add.particles(x, y, 'particle_star', {
+      speed: { min: 20, max: 100 },
+      scale: { start: 0.9, end: 0 },
+      lifespan: 700,
+      frequency: 35,
+      angle: { min: 0, max: 360 }
+    });
+
+    // 지속 흡인 (50ms 간격)
+    const ticks = Math.floor(duration / 50);
+    const pullEvent = scene.time.addEvent({
+      delay: 50,
+      repeat: ticks - 1,
+      callback: () => {
+        if (!circle.active) return;
+
+        // 적 끌어당기기
+        const pullEnemy = (sprite) => {
+          if (!sprite.active || !sprite.body) return;
+          const dx = x - sprite.x, dy = y - sprite.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 5 && dist < pullRadius) {
+            const force = 160;
+            sprite.body.velocity.x += (dx / dist) * force;
+            sprite.body.velocity.y += (dy / dist) * force;
+          }
+        };
+        scene.enemyManager?.group?.children.each(pullEnemy);
+        scene.enemyManager?.bossGroup?.children.each(pullEnemy);
+
+        // 적 탄 소멸
+        scene.enemyBullets?.children.each(b => {
+          if (!b.active) return;
+          if (Math.hypot(b.x - x, b.y - y) < visualMax) b.destroy();
+        });
+      }
+    });
+
+    scene.time.delayedCall(duration, () => {
+      pullEvent.remove(false);
+      emitter.destroy();
+      scene.tweens.add({
+        targets: circle, alpha: 0, radius: 20, duration: 300,
+        onComplete: () => { if (circle.active) circle.destroy(); }
+      });
     });
   }
 
-  // ── 분신 ──
+  // ── 분신: 화면 내 랜덤 2위치 소환, 강화 탄환 ──
   applyClone(player) {
     const scene = this.scene;
+    const cam = scene.cameras.main;
+    const cloneTex  = scene.textures.exists('player_down_idle') ? 'player_down_idle' : 'player';
+    const cloneSize = player.sprite.displayWidth * 0.95;
+    // 분신 탄 데미지 = 플레이어 공격력 × 2 (최소 20)
+    const cloneDmg  = Math.max(20, player.attackPower * 2);
 
-    // 분신 생성
+    // 화면 내 랜덤 위치 2곳 (플레이어와 180px 이상 떨어진 곳)
+    const positions = [];
+    let attempts = 0;
+    while (positions.length < 2 && attempts < 30) {
+      attempts++;
+      const cx = cam.scrollX + Phaser.Math.Between(80, 880);
+      const cy = cam.scrollY + Phaser.Math.Between(80, 560);
+      if (Phaser.Math.Distance.Between(cx, cy, player.sprite.x, player.sprite.y) >= 180) {
+        // 두 분신끼리도 120px 이상 떨어지게
+        if (positions.length === 0 || Phaser.Math.Distance.Between(cx, cy, positions[0].x, positions[0].y) >= 120) {
+          positions.push({ x: cx, y: cy });
+        }
+      }
+    }
+    // fallback: 좌우 충분히 떨어진 고정 위치
+    if (positions.length < 2) {
+      positions[0] = { x: player.sprite.x - 200, y: player.sprite.y };
+      positions[1] = { x: player.sprite.x + 200, y: player.sprite.y };
+    }
+
     for (let i = 0; i < 2; i++) {
-      const cx = player.sprite.x + (i === 0 ? -70 : 70);
-      const cy = player.sprite.y;
-      const cloneTex = scene.textures.exists('player_down_idle') ? 'player_down_idle' : 'player';
-      const cloneSize = player.sprite.displayWidth * 0.95;
+      const { x: cx, y: cy } = positions[i];
 
       const clone = scene.add.sprite(cx, cy, cloneTex)
-        .setAlpha(0.7)
-        .setDepth(2)
-        .setDisplaySize(cloneSize, cloneSize);
+        .setAlpha(0).setDepth(2).setDisplaySize(cloneSize, cloneSize);
 
-      const t = scene.time.addEvent({
-        delay: 300,
+      // 소환 연출: 파티클 + 페이드인
+      const ep = scene.add.particles(cx, cy, 'particle_star', {
+        speed: { min: 40, max: 130 }, scale: { start: 0.8, end: 0 },
+        lifespan: 500, emitting: false
+      });
+      ep.explode(18);
+      scene.time.delayedCall(600, () => ep.destroy());
+      scene.tweens.add({ targets: clone, alpha: 0.75, duration: 250 });
+
+      // 발사 이벤트 (200ms 간격)
+      const fireTimer = scene.time.addEvent({
+        delay: 200,
+        repeat: Math.floor(this.duration * 5) - 1,
         callback: () => {
           if (!clone.active) return;
 
-          // ── 분신 기준 가장 가까운 적 찾기
-          let nearest = null;
-          let minDist = Infinity;
-
-          const checkEnemy = (enemySprite) => {
-            if (!enemySprite.active) return;
-
-            const d = Phaser.Math.Distance.Between(
-              clone.x,
-              clone.y,
-              enemySprite.x,
-              enemySprite.y
-            );
-
-            if (d < minDist) {
-              minDist = d;
-              nearest = enemySprite;
-            }
+          // 가장 가까운 적 탐색
+          let nearest = null, minDist = Infinity;
+          const check = (s) => {
+            if (!s.active) return;
+            const d = Phaser.Math.Distance.Between(clone.x, clone.y, s.x, s.y);
+            if (d < minDist) { minDist = d; nearest = s; }
           };
-
-          if (scene.enemyManager && scene.enemyManager.group) {
-            scene.enemyManager.group.children.each(checkEnemy);
-          }
-
-          if (scene.enemyManager && scene.enemyManager.bossGroup) {
-            scene.enemyManager.bossGroup.children.each(checkEnemy);
-          }
-
-          // 적이 없으면 발사 안 함
+          scene.enemyManager?.group?.children.each(check);
+          scene.enemyManager?.bossGroup?.children.each(check);
           if (!nearest) return;
 
-          const angle = Phaser.Math.Angle.Between(
-            clone.x,
-            clone.y,
-            nearest.x,
-            nearest.y
-          );
+          const angle = Phaser.Math.Angle.Between(clone.x, clone.y, nearest.x, nearest.y);
 
-          // 분신의 탄은 player.bullets에 추가해서 기존 충돌 처리 사용
-          const b = player.bullets.create(clone.x, clone.y, 'bullet');
-          if (!b) return;
-
-          b.setActive(true).setVisible(true);
-          b.isPlayerBullet = true;
-          b.setDepth(10);
-          b.setScale(1.15);
-          b.rotation = angle;
-
-          const bulletSpeed = 630;
-
-          b.body.setVelocity(
-            Math.cos(angle) * bulletSpeed,
-            Math.sin(angle) * bulletSpeed
-          );
-        },
-        repeat: Math.floor(this.duration * 5) - 1
+          // 3발 부채꼴 발사
+          for (const off of [-0.12, 0, 0.12]) {
+            const b = player.bullets.create(clone.x, clone.y, 'bullet');
+            if (!b) continue;
+            b.setActive(true).setVisible(true).isPlayerBullet = true;
+            b.setDepth(10).setScale(1.2);
+            b.rotation = angle + off;
+            b.damage = cloneDmg;
+            b.body.setVelocity(Math.cos(angle + off) * 680, Math.sin(angle + off) * 680);
+          }
+        }
       });
 
       scene.time.delayedCall(this.duration * 1000, () => {
-        if (clone.active) clone.destroy();
-        t.remove(false);
+        fireTimer.remove(false);
+        scene.tweens.add({
+          targets: clone, alpha: 0, duration: 200,
+          onComplete: () => { if (clone.active) clone.destroy(); }
+        });
       });
     }
 
     // 활성화 파티클
-    const emitter = scene.add.particles(
-      player.sprite.x, player.sprite.y, 'particle_star', {
-      speed: { min: -80, max: 80 },
-      scale: { start: 0.8, end: 0 },
-      lifespan: 600,
-      emitting: false
-    }
-    );
+    const emitter = scene.add.particles(player.sprite.x, player.sprite.y, 'particle_star', {
+      speed: { min: -80, max: 80 }, scale: { start: 0.8, end: 0 },
+      lifespan: 600, emitting: false
+    });
     emitter.explode(20);
     scene.time.delayedCall(800, () => emitter.destroy());
   }

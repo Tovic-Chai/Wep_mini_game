@@ -79,7 +79,7 @@ export default class GameScene extends Phaser.Scene {
         if (!bullet.active || !enemySprite.active) return;
         const enemy = enemySprite.parentRef;
         if (!enemy) return;
-        enemy.takeDamage(p.attackPower);
+        enemy.takeDamage(bullet.damage ?? p.attackPower);
         bullet.destroy();
       }
     );
@@ -91,7 +91,7 @@ export default class GameScene extends Phaser.Scene {
         if (!bullet.active || !bossSprite.active) return;
         const boss = bossSprite.parentRef;
         if (!boss) return;
-        boss.takeDamage(p.attackPower);
+        boss.takeDamage(bullet.damage ?? p.attackPower);
         bullet.destroy();
       }
     );

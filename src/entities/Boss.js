@@ -1282,7 +1282,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
   }
 
-  // ── 블랙홀: 보스 중심으로 플레이어·몬스터 끌어당기기 ──
+  // ── 블랙홀: 500ms 경고 → 보스 중심으로 플레이어·몬스터 끌어당기기 ──
   _finalBlackhole() {
     const scene = this.scene;
     if (!this.alive) return;
@@ -1291,14 +1291,22 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const by = this.sprite.y;
     const player = scene.player;
 
-    const hole = scene.add.circle(bx, by, 20, 0x220033, 0.85)
+    const hole = scene.add.circle(bx, by, 10, 0x220033, 0.85)
       .setDepth(1).setStrokeStyle(4, 0x8844ff, 0.9);
 
-    scene.tweens.add({ targets: hole, radius: 150, duration: 600, ease: 'Sine.Out' });
+    // 경고 단계: 500ms 동안 원 성장 + 깜빡임
+    scene.tweens.add({ targets: hole, radius: 50, duration: 500, ease: 'Sine.Out' });
+    scene.tweens.add({ targets: hole, alpha: 0.4, duration: 120, yoyo: true, repeat: 3 });
+
+    scene.time.delayedCall(500, () => {
+      if (!hole.active || !this.alive) return;
+      scene.tweens.add({ targets: hole, radius: 150, duration: 400, ease: 'Back.Out' });
+    });
 
     const pullEvent = scene.time.addEvent({
       delay: 50,
       repeat: 69,
+      startAt: 500,
       callback: () => {
         if (!hole.active) return;
 
@@ -1335,7 +1343,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     });
   }
 
-  // ── 빛·검: 30도 부채꼴 5줄 빔 ──
+  // ── 빛·검: 경고(800ms) → 30도 부채꼴 5줄 빔 ──
   _finalLightSword() {
     const scene = this.scene;
     if (!this.alive) return;
@@ -1349,37 +1357,58 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const beamLength = 320;
     const beamCount  = 5;
 
+    // 경고 선 표시 (반투명, 깜빡임)
+    const warnings = [];
     for (let i = 0; i < beamCount; i++) {
-      const beamAngle = baseAngle + Phaser.Math.DegToRad(-12 + i * 6);
-      scene.time.delayedCall(i * 100, () => {
-        if (!this.alive) return;
-
-        const mx = this.sprite.x + Math.cos(beamAngle) * beamLength / 2;
-        const my = this.sprite.y + Math.sin(beamAngle) * beamLength / 2;
-        const beam = scene.add.rectangle(mx, my, beamLength, 18, 0xffee44, 0.9)
-          .setDepth(9).setRotation(beamAngle);
-
-        scene.cameras.main.flash(120, 255, 230, 100);
-
-        const px = player.sprite.x;
-        const py = player.sprite.y;
-        const line = new Phaser.Geom.Line(
-          this.sprite.x, this.sprite.y,
-          this.sprite.x + Math.cos(beamAngle) * beamLength,
-          this.sprite.y + Math.sin(beamAngle) * beamLength
-        );
-        if (Phaser.Geom.Line.GetShortestDistance(line, new Phaser.Geom.Point(px, py)) < 22) {
-          player.takeDamage(18);
-          if (player.hp <= 0 && scene._triggerGameOver) scene._triggerGameOver();
-        }
-
-        scene.tweens.add({
-          targets: beam, alpha: 0,
-          duration: 200,
-          onComplete: () => { if (beam.active) beam.destroy(); }
-        });
-      });
+      const a = baseAngle + Phaser.Math.DegToRad(-12 + i * 6);
+      const mx = this.sprite.x + Math.cos(a) * beamLength / 2;
+      const my = this.sprite.y + Math.sin(a) * beamLength / 2;
+      const warn = scene.add.rectangle(mx, my, beamLength, 10, 0xffee44, 0.25)
+        .setDepth(8).setRotation(a);
+      warnings.push(warn);
     }
+    scene.tweens.add({ targets: warnings, alpha: 0.65, duration: 160, yoyo: true, repeat: 3 });
+    // 보스 몸통 충전 모션
+    if (this.sprite?.active) {
+      scene.tweens.add({ targets: this.sprite, alpha: 0.3, duration: 130, yoyo: true, repeat: 3 });
+    }
+
+    // 800ms 후 실제 빔 발사
+    scene.time.delayedCall(800, () => {
+      warnings.forEach(w => { if (w.active) w.destroy(); });
+      if (!this.alive) return;
+
+      for (let i = 0; i < beamCount; i++) {
+        const beamAngle = baseAngle + Phaser.Math.DegToRad(-12 + i * 6);
+        scene.time.delayedCall(i * 100, () => {
+          if (!this.alive) return;
+
+          const mx = this.sprite.x + Math.cos(beamAngle) * beamLength / 2;
+          const my = this.sprite.y + Math.sin(beamAngle) * beamLength / 2;
+          const beam = scene.add.rectangle(mx, my, beamLength, 18, 0xffee44, 0.9)
+            .setDepth(9).setRotation(beamAngle);
+
+          scene.cameras.main.flash(120, 255, 230, 100);
+
+          const px = player.sprite.x;
+          const py = player.sprite.y;
+          const line = new Phaser.Geom.Line(
+            this.sprite.x, this.sprite.y,
+            this.sprite.x + Math.cos(beamAngle) * beamLength,
+            this.sprite.y + Math.sin(beamAngle) * beamLength
+          );
+          if (Phaser.Geom.Line.GetShortestDistance(line, new Phaser.Geom.Point(px, py)) < 22) {
+            player.takeDamage(18);
+            if (player.hp <= 0 && scene._triggerGameOver) scene._triggerGameOver();
+          }
+
+          scene.tweens.add({
+            targets: beam, alpha: 0, duration: 200,
+            onComplete: () => { if (beam.active) beam.destroy(); }
+          });
+        });
+      }
+    });
   }
 
   // ── 시계: 전역 타임슬로우 5초 ──
