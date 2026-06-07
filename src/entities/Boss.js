@@ -6,8 +6,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     const keyMap = {
       mini1: 'mb1_back_close',
-      mini2: 'boss_mini2',
-      mini3: 'boss_mini3',
+      mini2: 'mb2_front_half2',
+      mini3: 'mb3_stop',
       final: 'main_boss_down'
     };
     const scaleMap = {
@@ -322,7 +322,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     // 프레임 0 = 눈 뜬 상태 (길게 유지)
     const SEQS = {
       front: [
-        ['boss_mini2',      0],
+        ['mb2_front_half2', 0],
         ['mb2_front_half2', 0.08],
         ['mb2_front_half',  0.08],
         ['mb2_front_close', 0.12],
@@ -863,7 +863,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const radius = this.kind === 'final' ? 150 : 120;
 
     const hole = scene.add.circle(x, y, 20, 0x050010, 0.85)
-      .setDepth(6)
+      .setDepth(1)
       .setStrokeStyle(4, 0x8844ff, 0.9);
 
     scene.tweens.add({
@@ -1292,7 +1292,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const player = scene.player;
 
     const hole = scene.add.circle(bx, by, 20, 0x220033, 0.85)
-      .setDepth(6).setStrokeStyle(4, 0x8844ff, 0.9);
+      .setDepth(1).setStrokeStyle(4, 0x8844ff, 0.9);
 
     scene.tweens.add({ targets: hole, radius: 150, duration: 600, ease: 'Sine.Out' });
 

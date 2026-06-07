@@ -9,8 +9,7 @@ export default class BootScene extends Phaser.Scene {
     // ── 보스 이미지 ──
     this.load.image('player', 'assets/images/player1.png');
     this.load.image('boss_mini1', 'assets/images/mini_boss_1.png');
-    this.load.image('boss_mini2', 'assets/images/mini_boss_2.png');
-    this.load.image('boss_mini3', 'assets/images/mini_boss_3.png');
+    // boss_mini2, boss_mini3: 컨셉아트 미사용 — Boss.js에서 실제 애니프레임 사용
     this.load.image('boss_final_phase1', 'assets/images/boss_phase_1.png');
     this.load.image('boss_final_phase2', 'assets/images/boss_phase_2.png');
     this.load.image('boss_final_phase3', 'assets/images/boss_phase_3.png');
