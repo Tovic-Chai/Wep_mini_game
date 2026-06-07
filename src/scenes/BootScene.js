@@ -2,6 +2,10 @@ export default class BootScene extends Phaser.Scene {
   constructor() { super({ key: 'BootScene' }); }
 
   preload() {
+    // ── 몬스터 이미지 ──
+    this.load.image('enemy',     'assets/images/monster1.png');
+    this.load.image('enemy_m02', 'assets/images/monster2.png');
+
     // ── 보스 이미지 ──
     this.load.image('player', 'assets/images/player1.png');
     this.load.image('boss_mini1', 'assets/images/mini_boss_1.png');
@@ -149,25 +153,29 @@ export default class BootScene extends Phaser.Scene {
     g.generateTexture('boss_bullet', 14, 6);
     g.destroy();
 
-    // ── 6) 적 M01 (자홍색 사각형) ──
-    g = this.add.graphics();
-    g.fillStyle(0xaa44ff, 1);
-    g.fillRect(2, 2, 24, 24);
-    g.lineStyle(2, 0xffaaff, 1);
-    g.strokeRect(2, 2, 24, 24);
-    g.generateTexture('enemy', 28, 28);
-    g.destroy();
+    // ── 6) 적 M01 — 이미지 로드 실패 시에만 폴백 생성 ──
+    if (!this.textures.exists('enemy')) {
+      g = this.add.graphics();
+      g.fillStyle(0xaa44ff, 1);
+      g.fillRect(2, 2, 24, 24);
+      g.lineStyle(2, 0xffaaff, 1);
+      g.strokeRect(2, 2, 24, 24);
+      g.generateTexture('enemy', 28, 28);
+      g.destroy();
+    }
 
-    // ── 7) 적 M02 (다크레드 다이아몬드) ──
-    g = this.add.graphics();
-    g.fillStyle(0xcc2200, 1);
-    g.fillTriangle(14, 1, 27, 14, 14, 27);
-    g.fillTriangle(14, 1, 1, 14, 14, 27);
-    g.lineStyle(2, 0xff6644, 1);
-    g.strokeTriangle(14, 1, 27, 14, 14, 27);
-    g.strokeTriangle(14, 1, 1, 14, 14, 27);
-    g.generateTexture('enemy_m02', 28, 28);
-    g.destroy();
+    // ── 7) 적 M02 — 이미지 로드 실패 시에만 폴백 생성 ──
+    if (!this.textures.exists('enemy_m02')) {
+      g = this.add.graphics();
+      g.fillStyle(0xcc2200, 1);
+      g.fillTriangle(14, 1, 27, 14, 14, 27);
+      g.fillTriangle(14, 1, 1, 14, 14, 27);
+      g.lineStyle(2, 0xff6644, 1);
+      g.strokeTriangle(14, 1, 27, 14, 14, 27);
+      g.strokeTriangle(14, 1, 1, 14, 14, 27);
+      g.generateTexture('enemy_m02', 28, 28);
+      g.destroy();
+    }
 
     // ── 8) 적 M03 (오렌지 육각형) ──
     g = this.add.graphics();
