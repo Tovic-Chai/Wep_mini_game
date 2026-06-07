@@ -285,17 +285,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
       dir = vy >= 0 ? 'front' : 'up';
     }
 
-    if (dir !== this._animDir) {
-      this._animDir   = dir;
-      this._animFrame = 0;
-      this._animTimer = 0;
-    }
-
-    this._animTimer -= dt;
-    if (this._animTimer > 0) return;
-
     // 각 방향 프레임 시퀀스 [텍스처키, 재생시간(초)]
-    // 프레임 0 = 눈 뜬 상태 (길게 유지) — 실제 시간은 아래에서 랜덤 처리
+    // 프레임 0 = 눈 뜬 상태 (길게 유지)
     const SEQS = {
       front: [
         ['boss_mini2',      0],
@@ -325,11 +316,26 @@ export default class Boss extends Phaser.Events.EventEmitter {
       ],
     };
 
+    // 방향 전환 시: 즉시 눈 뜬 프레임 적용 + 홀드 타이머 설정
+    // (타이머만 0으로 리셋하면 다음 틱에 frame 1로 점프해 갭이 생김)
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      const [openKey] = SEQS[dir][0];
+      this.sprite.setTexture(openKey).setFlipX(vx < 0 && dir === 'right');
+      this.sprite.body.setSize(this._bodySize, this._bodySize);
+      this._animTimer = 2.0 + Math.random() * 1.5;
+      return;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+
     const seq = SEQS[dir];
     this._animFrame = (this._animFrame + 1) % seq.length;
     const [key, baseDur] = seq[this._animFrame];
 
-    // 프레임 0은 눈 뜬 상태 — 랜덤 대기 후 다음 깜빡임
+    // 프레임 0으로 돌아오면 눈 뜬 상태를 랜덤 시간 유지
     const dur = this._animFrame === 0 ? 2.0 + Math.random() * 1.5 : baseDur;
     this._animTimer = dur;
 
@@ -381,7 +387,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     const WALK = {
       down:  ['mb3_down_walk1',  'mb3_down_walk2'],
-      right: ['mb3_right_walk1', 'mb3_right_walk2'],
+      right: ['mb3_right_walk1', 'mb3_stop', 'mb3_right_walk2', 'mb3_stop'],
       up:    ['mb3_up_walk1',    'mb3_up_walk2'],
     };
 
@@ -519,9 +525,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this._isCasting = true;
     _applyFrame('mb1_cast1');
 
-    scene.time.delayedCall(350,  () => _applyFrame('mb1_cast2'));
-    scene.time.delayedCall(650,  () => _applyFrame('mb1_cast3'));
-    scene.time.delayedCall(900,  () => _applyFrame('mb1_cast4'));
+    scene.time.delayedCall(350, () => _applyFrame('mb1_cast2'));
+    scene.time.delayedCall(650, () => _applyFrame('mb1_cast3'));
+    // mb1_cast4 파일이 투명(6892b)이라 사용 안 함 — cast3를 유지
 
     // 마법진 종료(약 6300ms) 후 이동 재개 + 방향 애니메이션 복원
     scene.time.delayedCall(6300, () => {
