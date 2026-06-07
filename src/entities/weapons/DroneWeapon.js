@@ -19,11 +19,11 @@ export default class DroneWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,
-      { damage: 12, count: 1, cooldown: 0.85, bulletSpeed: 430, range: 520, wanderRadius: 120, droneSpeed: 130 },
-      { damage: 18, count: 1, cooldown: 0.70, bulletSpeed: 470, range: 580, wanderRadius: 135, droneSpeed: 145 },
-      { damage: 24, count: 2, cooldown: 0.65, bulletSpeed: 510, range: 640, wanderRadius: 150, droneSpeed: 160 },
-      { damage: 34, count: 2, cooldown: 0.52, bulletSpeed: 560, range: 700, wanderRadius: 165, droneSpeed: 175 },
-      { damage: 48, count: 3, cooldown: 0.42, bulletSpeed: 620, range: 780, wanderRadius: 185, droneSpeed: 195 },
+      { damage: 18, count: 1, cooldown: 0.85, bulletSpeed: 430, range: 520, wanderRadius: 120, droneSpeed: 130 },
+      { damage: 27, count: 1, cooldown: 0.70, bulletSpeed: 470, range: 580, wanderRadius: 135, droneSpeed: 145 },
+      { damage: 36, count: 2, cooldown: 0.65, bulletSpeed: 510, range: 640, wanderRadius: 150, droneSpeed: 160 },
+      { damage: 51, count: 2, cooldown: 0.52, bulletSpeed: 560, range: 700, wanderRadius: 165, droneSpeed: 175 },
+      { damage: 72, count: 3, cooldown: 0.42, bulletSpeed: 620, range: 780, wanderRadius: 185, droneSpeed: 195 },
     ];
 
     const s = STATS[this.level];

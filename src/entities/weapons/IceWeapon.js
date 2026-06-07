@@ -18,11 +18,11 @@ export default class IceWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,
-      { damage: 25, count: 1, cooldown: 2.8, speed: 430, slow: 0.65, slowDuration: 1.5, pierce: 0 }, // Lv1
-      { damage: 35, count: 1, cooldown: 2.5, speed: 450, slow: 0.60, slowDuration: 1.7, pierce: 0 }, // Lv2
-      { damage: 45, count: 2, cooldown: 2.3, speed: 470, slow: 0.55, slowDuration: 2.0, pierce: 0 }, // Lv3
-      { damage: 60, count: 2, cooldown: 2.0, speed: 500, slow: 0.50, slowDuration: 2.2, pierce: 1 }, // Lv4
-      { damage: 80, count: 3, cooldown: 1.7, speed: 530, slow: 0.45, slowDuration: 2.5, pierce: 1 }, // Lv5
+      { damage: 38, count: 1, cooldown: 2.8, speed: 430, slow: 0.65, slowDuration: 1.5, pierce: 0 }, // Lv1
+      { damage: 52, count: 1, cooldown: 2.5, speed: 450, slow: 0.60, slowDuration: 1.7, pierce: 0 }, // Lv2
+      { damage: 68, count: 2, cooldown: 2.3, speed: 470, slow: 0.55, slowDuration: 2.0, pierce: 0 }, // Lv3
+      { damage: 90, count: 2, cooldown: 2.0, speed: 500, slow: 0.50, slowDuration: 2.2, pierce: 1 }, // Lv4
+      { damage: 120, count: 3, cooldown: 1.7, speed: 530, slow: 0.45, slowDuration: 2.5, pierce: 1 }, // Lv5
     ];
 
     const s = STATS[this.level];

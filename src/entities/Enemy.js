@@ -49,8 +49,8 @@ export default class Enemy {
 
     // gameTime + 플레이어 레벨 복합 스케일링
     const playerLevel = scene.player?.level || 1;
-    const timeFactor  = 1 + Math.floor(gameTime / 30) * 0.20;
-    const levelFactor = 1 + (playerLevel - 1) * 0.18;
+    const timeFactor  = 1 + Math.floor(gameTime / 30) * 0.13;
+    const levelFactor = 1 + (playerLevel - 1) * 0.12;
     const hpMultiplier = timeFactor * levelFactor;
 
     this.maxHp = Math.floor(base.hp * hpMultiplier);

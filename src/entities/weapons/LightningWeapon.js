@@ -14,11 +14,11 @@ export default class LightningWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,
-      { damage: 40,  strikes: 1, radius: 50, cooldown: 4.0 }, // Lv1
-      { damage: 60,  strikes: 1, radius: 60, cooldown: 3.0 }, // Lv2
-      { damage: 80,  strikes: 2, radius: 65, cooldown: 2.5 }, // Lv3
-      { damage: 100, strikes: 2, radius: 75, cooldown: 2.0 }, // Lv4
-      { damage: 130, strikes: 3, radius: 85, cooldown: 1.5 }, // Lv5
+      { damage: 60,  strikes: 1, radius: 50, cooldown: 4.0 }, // Lv1
+      { damage: 90,  strikes: 1, radius: 60, cooldown: 3.0 }, // Lv2
+      { damage: 120, strikes: 2, radius: 65, cooldown: 2.5 }, // Lv3
+      { damage: 150, strikes: 2, radius: 75, cooldown: 2.0 }, // Lv4
+      { damage: 200, strikes: 3, radius: 85, cooldown: 1.5 }, // Lv5
     ];
     const s = STATS[this.level];
     this.damage   = s.damage;

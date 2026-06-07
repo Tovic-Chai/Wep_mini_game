@@ -14,11 +14,11 @@ export default class FireballWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,                                      // 인덱스 0 (미사용)
-      { damage: 60,  count: 1, cooldown: 3.0, speed: 140 }, // Lv1
-      { damage: 90,  count: 1, cooldown: 2.5, speed: 150 }, // Lv2
-      { damage: 110, count: 2, cooldown: 2.2, speed: 160 }, // Lv3
-      { damage: 140, count: 2, cooldown: 1.8, speed: 170 }, // Lv4
-      { damage: 180, count: 3, cooldown: 1.5, speed: 180 }, // Lv5
+      { damage: 90,  count: 1, cooldown: 3.0, speed: 140 }, // Lv1
+      { damage: 135, count: 1, cooldown: 2.5, speed: 150 }, // Lv2
+      { damage: 165, count: 2, cooldown: 2.2, speed: 160 }, // Lv3
+      { damage: 210, count: 2, cooldown: 1.8, speed: 170 }, // Lv4
+      { damage: 270, count: 3, cooldown: 1.5, speed: 180 }, // Lv5
     ];
     const s = STATS[this.level];
     this.damage   = s.damage;

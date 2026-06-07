@@ -960,8 +960,8 @@ export default class GameScene extends Phaser.Scene {
 
     switch (cardDef) {
       case 'attack': {
-        const vals = { 노말: [5, 10], 레어: [8, 12], 에픽: [12, 15], 레전드: [17, 17] };
-        const [lo, hi] = vals[rarity.name] || [5, 10];
+        const vals = { 노말: [12, 20], 레어: [18, 28], 에픽: [28, 38], 레전드: [45, 45] };
+        const [lo, hi] = vals[rarity.name] || [12, 20];
         const v = Phaser.Math.Between(lo, hi);
         return {
           label: `⚔️ 공격력\n+${v}`,

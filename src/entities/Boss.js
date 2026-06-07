@@ -39,9 +39,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     const cfg = configs[kind] || configs.mini1;
 
-    // 플레이어 레벨 비례 HP 스케일 (최소 2배)
+    // 플레이어 레벨 비례 HP 스케일 (최소 1.4배)
     const playerLevel = scene.player?.level || 1;
-    const hpScale = Math.max(2, 1 + (playerLevel - 1) * 0.35);
+    const hpScale = Math.max(1.4, 1 + (playerLevel - 1) * 0.22);
     this.hp = Math.floor(cfg.hp * hpScale);
     this.skill = cfg.skill;
 
