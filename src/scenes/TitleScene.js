@@ -36,7 +36,7 @@ export default class TitleScene extends Phaser.Scene {
       '',
       'WASD / 방향키   이동            ',
       '               Shift   저속 이동 (정밀 회피)      ',
-      '        Q / E / R   보스 흡수 스킬 사용     ',
+      '        Q / E / C   보스 흡수 스킬 사용     ',
       '',
       '  게임 설명     ',
       '',
