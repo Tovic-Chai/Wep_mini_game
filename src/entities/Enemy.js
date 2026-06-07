@@ -10,7 +10,10 @@ export default class Enemy {
       M03: 'enemy_m03'
     }[type] || 'enemy';
 
-    this.sprite = scene.physics.add.sprite(x, y, textureKey).setDepth(1);
+    this.sprite = scene.physics.add.sprite(x, y, textureKey)
+      .setDepth(1)
+      .setDisplaySize(40, 40);
+    this.sprite.body.setSize(36, 36);
     this.sprite.parentRef = this;
 
     // 몬스터별 기본 스탯 + 경험치 색상

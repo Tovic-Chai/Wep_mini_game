@@ -14,6 +14,7 @@ export default class Skill {
       case 'timeSlow': this.applyTimeSlow(player); break;
       case 'blackhole': this.applyBlackhole(player); break;
       case 'clone': this.applyClone(player); break;
+      case 'laser': this.applyLaser(player); break;
     }
   }
 
@@ -171,5 +172,81 @@ export default class Skill {
     emitter.explode(20);
     scene.time.delayedCall(800, () => emitter.destroy());
   }
-  
+
+  // ── 레이저 ──
+  applyLaser(player) {
+    const scene = this.scene;
+    const sx = player.sprite.x;
+    const sy = player.sprite.y;
+
+    // 마우스 커서 방향으로 발사
+    const ptr = scene.input.activePointer;
+    const cx = scene.cameras.main;
+    const mx = ptr.x + cx.scrollX;
+    const my = ptr.y + cx.scrollY;
+    const angle = Phaser.Math.Angle.Between(sx, sy, mx, my);
+    const length = 1400;
+
+    // 예고선
+    const warning = scene.add.rectangle(
+      sx + Math.cos(angle) * length / 2,
+      sy + Math.sin(angle) * length / 2,
+      length, 10, 0x00ffff, 0.4
+    ).setDepth(15).setRotation(angle).setScrollFactor(1);
+
+    scene.tweens.add({
+      targets: warning, alpha: 0.8, duration: 100, yoyo: true, repeat: 2
+    });
+
+    scene.time.delayedCall(350, () => {
+      if (warning.active) warning.destroy();
+
+      // 레이저 빔
+      const beam = scene.add.rectangle(
+        sx + Math.cos(angle) * length / 2,
+        sy + Math.sin(angle) * length / 2,
+        length, 24, 0x00ffff, 0.95
+      ).setDepth(15).setRotation(angle).setScrollFactor(1);
+
+      const core = scene.add.rectangle(
+        sx + Math.cos(angle) * length / 2,
+        sy + Math.sin(angle) * length / 2,
+        length, 8, 0xffffff, 1
+      ).setDepth(16).setRotation(angle).setScrollFactor(1);
+
+      scene.cameras.main.flash(200, 0, 200, 255);
+
+      // 빔 범위 안의 적에게 데미지
+      const beamLine = new Phaser.Geom.Line(
+        sx, sy,
+        sx + Math.cos(angle) * length,
+        sy + Math.sin(angle) * length
+      );
+
+      const dealDamage = (group) => {
+        if (!group) return;
+        group.children.each(sprite => {
+          if (!sprite.active) return;
+          const d = Phaser.Geom.Line.GetShortestDistance(beamLine, new Phaser.Geom.Point(sprite.x, sprite.y));
+          if (d < 30) {
+            if (sprite.parentRef && sprite.parentRef.takeDamage) {
+              sprite.parentRef.takeDamage(80);
+            }
+          }
+        });
+      };
+
+      dealDamage(scene.enemyManager?.group);
+      dealDamage(scene.enemyManager?.bossGroup);
+
+      scene.tweens.add({
+        targets: [beam, core], alpha: 0, duration: 400,
+        onComplete: () => {
+          if (beam.active) beam.destroy();
+          if (core.active) core.destroy();
+        }
+      });
+    });
+  }
+
 }

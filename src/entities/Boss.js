@@ -32,7 +32,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
     // 보스별 스탯 및 획득 스킬
     const configs = {
       mini1: { hp: 1500, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
-      mini2: { hp: 2500, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
+      mini2: { hp: 2500, skill: { id: 'laser', name: '레이저', duration: 3, cooldown: 50, effect: 'laser' } },
       mini3: { hp: 4000, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
       final: { hp: 15000, skill: null }
     };
@@ -61,9 +61,11 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
     if (kind === 'mini2') {
-      this._animDir   = 'front';
-      this._animFrame = 0;
-      this._animTimer = 0;
+      this._animDir    = 'front';
+      this._animFrame  = 0;
+      this._animTimer  = 0;
+      this._laserNext  = false;
+      this._isCasting2 = false;
     }
 
     // ── 미니보스3 걷기/멈춤 방향 애니메이션 ──
@@ -148,9 +150,11 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this.castSlowZone();
     }
 
-    if (this.kind === 'mini2' && this.patternTimer <= 0) {
-      this.patternTimer = 6;
-      this.castBlackhole();
+    if (this.kind === 'mini2' && this.patternTimer <= 0 && !this._isCasting2) {
+      this.patternTimer = 8;
+      this._laserNext = !this._laserNext;
+      if (this._laserNext) this.castLaser();
+      else this.castBlackhole();
     }
 
     if (this.kind === 'mini3') {
@@ -275,6 +279,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
   // ──────────────────────────────────────────
   _updateMini2Anim(dt) {
     if (!this.sprite?.active) return;
+    if (this._isCasting2) return;
 
     const vx = this.sprite.body.velocity.x;
     const vy = this.sprite.body.velocity.y;
@@ -883,6 +888,95 @@ export default class Boss extends Phaser.Events.EventEmitter {
         duration: 300,
         onComplete: () => {
           if (hole.active) hole.destroy();
+        }
+      });
+    });
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스 2: 레이저 시전
+  //  mb2_eye_laser (차지) → mb2_laser (발사) → 부채꼴 탄막
+  // ──────────────────────────────────────────
+  castLaser() {
+    const scene = this.scene;
+    const player = scene.player;
+    if (!player || !player.sprite) return;
+
+    this._isCasting2 = true;
+    const bs = this._bodySize;
+
+    const _applyFrame2 = (key) => {
+      if (!this.alive || !this.sprite?.active) return;
+      this.sprite.setTexture(key).setScale(this._baseScale).setDepth(3);
+      this.sprite.body.setSize(bs, bs);
+    };
+
+    // 차지 단계: 눈이 레이저 준비 상태
+    _applyFrame2('mb2_eye_laser');
+
+    // 화면 경고선 (플레이어 조준)
+    const sx = this.sprite.x;
+    const sy = this.sprite.y;
+    const targetAngle = Phaser.Math.Angle.Between(sx, sy, player.sprite.x, player.sprite.y);
+    const warnLen = 1200;
+
+    const warning = scene.add.rectangle(
+      sx + Math.cos(targetAngle) * warnLen / 2,
+      sy + Math.sin(targetAngle) * warnLen / 2,
+      warnLen, 10, 0x00ffff, 0.35
+    ).setDepth(7).setRotation(targetAngle);
+
+    scene.tweens.add({
+      targets: warning, alpha: 0.7, duration: 100, yoyo: true, repeat: 4
+    });
+
+    // 1.0초 후: 레이저 발사
+    scene.time.delayedCall(1000, () => {
+      if (!this.alive) { if (warning.active) warning.destroy(); return; }
+      _applyFrame2('mb2_laser');
+      if (warning.active) warning.destroy();
+
+      // 발사 시점 보스 위치
+      const bx = this.sprite.x;
+      const by = this.sprite.y;
+      const fireAngle = Phaser.Math.Angle.Between(bx, by, player.sprite.x, player.sprite.y);
+
+      // 레이저 빔 시각 효과
+      const beam = scene.add.rectangle(
+        bx + Math.cos(fireAngle) * warnLen / 2,
+        by + Math.sin(fireAngle) * warnLen / 2,
+        warnLen, 18, 0x00ffff, 0.9
+      ).setDepth(7).setRotation(fireAngle);
+
+      scene.tweens.add({
+        targets: beam, alpha: 0, duration: 350,
+        onComplete: () => { if (beam.active) beam.destroy(); }
+      });
+
+      // 부채꼴 탄막 (5발, ±30도 범위)
+      const spread = [-0.52, -0.26, 0, 0.26, 0.52];
+      spread.forEach(off => {
+        this._spawnBossBullet(bx, by, fireAngle + off, 160, 1.1);
+      });
+
+      // 카메라 플래시
+      scene.cameras.main.flash(150, 0, 200, 255);
+
+      // 1.5초 후: 일반 상태 복귀
+      scene.time.delayedCall(1500, () => {
+        if (!this.alive) return;
+        this._isCasting2 = false;
+        this._animFrame  = 0;
+        this._animTimer  = 2.0;
+        if (this.sprite?.active) {
+          // 방향에 맞는 open 텍스처로 복귀
+          const vx = this.sprite.body.velocity.x;
+          const vy = this.sprite.body.velocity.y;
+          let openKey = 'boss_mini2';
+          if (Math.abs(vx) > Math.abs(vy)) openKey = 'mb2_right_open2';
+          else if (vy < 0) openKey = 'mb2_up_open';
+          this.sprite.setTexture(openKey).setScale(this._baseScale);
+          this.sprite.body.setSize(bs, bs);
         }
       });
     });
