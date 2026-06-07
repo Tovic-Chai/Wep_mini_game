@@ -74,6 +74,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._animDir   = 'down';
       this._animFrame = 0;
       this._animTimer = 0;
+      this._lastDir   = 'down';
     }
 
     // ── 보스별 특수 패턴 타이머 ──
@@ -273,7 +274,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
   // ──────────────────────────────────────────
   //  미니보스2 방향별 눈 깜빡임 애니메이션
-  //  front(아래): boss_mini2 → half2 → half → close → close2 → close3 → ... → 반복
+  //  front(아래): half2 → half → close → close2 → close3 → ... → 반복
   //  right(우): right_open2 → half2 → half → close → ... → 반복  (flipX for left)
   //  up: up_open → up_half → up_close → up_half → 반복
   // ──────────────────────────────────────────
@@ -292,10 +293,10 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     // 각 방향 프레임 시퀀스 [텍스처키, 재생시간(초)]
     // 프레임 0 = 눈 뜬 상태 (길게 유지)
+    // front open(boss_mini2)은 다른 eye 프레임과 시각 스타일이 달라 mb2_front_half2 사용
     const SEQS = {
       front: [
-        ['boss_mini2',      0],
-        ['mb2_front_half2', 0.08],
+        ['mb2_front_half2', 0],
         ['mb2_front_half',  0.08],
         ['mb2_front_close', 0.12],
         ['mb2_front_close2',0.10],
@@ -303,7 +304,6 @@ export default class Boss extends Phaser.Events.EventEmitter {
         ['mb2_front_close2',0.08],
         ['mb2_front_close', 0.08],
         ['mb2_front_half',  0.08],
-        ['mb2_front_half2', 0.08],
       ],
       right: [
         ['mb2_right_open2', 0],
@@ -351,9 +351,9 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
   // ──────────────────────────────────────────
   //  미니보스3 방향별 걷기/멈춤 애니메이션
-  //  이동 중: 방향별 walk1↔walk2 교체 (0.18s 간격)
+  //  right: walk1(→) → stop(←flip) → walk2(→)
+  //  left:  walk1(←flip) → stop(←) → walk2(←flip)
   //  정지 중(_stopTimer > 0): mb3_stop 고정
-  //  좌측 이동: right 텍스처 + flipX
   // ──────────────────────────────────────────
   _updateMini3Anim(dt) {
     if (!this.sprite?.active) return;
@@ -362,23 +362,26 @@ export default class Boss extends Phaser.Events.EventEmitter {
     const vy = this.sprite.body.velocity.y;
     const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
 
-    // 정지 상태: mb3_stop 고정
+    // 정지 상태: mb3_stop 고정 (마지막 이동 방향에 따라 flip)
     if (this._stopTimer > 0 || !moving) {
-      if (this.sprite.texture.key !== 'mb3_stop') {
-        this.sprite.setTexture('mb3_stop');
+      const stopFlip = this._lastDir === 'right';
+      if (this.sprite.texture.key !== 'mb3_stop' || this.sprite.flipX !== stopFlip) {
+        this.sprite.setTexture('mb3_stop').setFlipX(stopFlip);
         this.sprite.body.setSize(this._bodySize, this._bodySize);
       }
       this._animTimer = 0;
       return;
     }
 
-    // 방향 감지
+    // 방향 감지 (left/right 분리)
     let dir;
     if (Math.abs(vx) > Math.abs(vy)) {
-      dir = 'right';
+      dir = vx >= 0 ? 'right' : 'left';
     } else {
       dir = vy >= 0 ? 'down' : 'up';
     }
+
+    this._lastDir = dir;
 
     if (dir !== this._animDir) {
       this._animDir   = dir;
@@ -390,16 +393,35 @@ export default class Boss extends Phaser.Events.EventEmitter {
     if (this._animTimer > 0) return;
     this._animTimer = 0.18;
 
+    // 각 프레임에 [텍스처키, flipX] 지정
+    // right: walk1(no flip) → left_stop(flipped = 오른쪽 향) → walk2(no flip)
+    // left:  walk1(flipped) → left_stop(no flip = 왼쪽 향)  → walk2(flipped)
     const WALK = {
-      down:  ['mb3_down_walk1',  'mb3_down_walk2'],
-      right: ['mb3_right_walk1', 'mb3_stop', 'mb3_right_walk2', 'mb3_stop'],
-      up:    ['mb3_up_walk1',    'mb3_up_walk2'],
+      down:  [
+        { key: 'mb3_down_walk1',  flip: false },
+        { key: 'mb3_down_walk2',  flip: false },
+      ],
+      up:    [
+        { key: 'mb3_up_walk1',    flip: false },
+        { key: 'mb3_up_walk2',    flip: false },
+      ],
+      right: [
+        { key: 'mb3_right_walk1', flip: false },
+        { key: 'mb3_stop',        flip: true  },
+        { key: 'mb3_right_walk2', flip: false },
+      ],
+      left: [
+        { key: 'mb3_right_walk1', flip: true  },
+        { key: 'mb3_stop',        flip: false },
+        { key: 'mb3_right_walk2', flip: true  },
+      ],
     };
 
     const frames = WALK[dir];
     this._animFrame = (this._animFrame + 1) % frames.length;
+    const { key, flip } = frames[this._animFrame];
 
-    this.sprite.setTexture(frames[this._animFrame]).setFlipX(vx < 0 && dir === 'right');
+    this.sprite.setTexture(key).setFlipX(flip);
     // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
     this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
@@ -972,7 +994,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
           // 방향에 맞는 open 텍스처로 복귀
           const vx = this.sprite.body.velocity.x;
           const vy = this.sprite.body.velocity.y;
-          let openKey = 'boss_mini2';
+          let openKey = 'mb2_front_half2';
           if (Math.abs(vx) > Math.abs(vy)) openKey = 'mb2_right_open2';
           else if (vy < 0) openKey = 'mb2_up_open';
           this.sprite.setTexture(openKey).setScale(this._baseScale);
