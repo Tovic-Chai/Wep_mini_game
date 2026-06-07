@@ -83,10 +83,12 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
 
     // ── 보스별 특수 패턴 타이머 ──
-    this.patternTimer = 9;  // 초기 유예 시간 + 첫 시전까지 9초
-    this.specialTimer = 0;
-    this.teleportTimer = 4;
-    this.cloneSprites = [];
+    this.patternTimer      = 9;  // 초기 유예 시간 + 첫 시전까지 9초
+    this.specialTimer      = 0;
+    this.teleportTimer     = 4;
+    this._skillCastEndTime = 0;  // 스킬 시전 잠금 해제 시각 (ms)
+    this._finalSkillIdx    = -1; // 최종보스 스킬 순환 인덱스
+    this.cloneSprites      = [];
 
     // 체력바 (보스 HP 바)
     this._buildHpBar();
@@ -179,18 +181,21 @@ export default class Boss extends Phaser.Events.EventEmitter {
       }
     }
 
-    // ── 최종 보스 4-스킬 페이즈 시스템 ──
-    if (this.kind === 'final' && this.specialTimer <= 0 && !this._isAbsorbing) {
-      const skillCountByPhase = { 1: 1, 2: 2, 3: 4 };
+    // ── 최종 보스 스킬 시스템 (거울·흡수 제거, 스킬 중 재시전 잠금) ──
+    if (this.kind === 'final' && this.specialTimer <= 0 &&
+        !this._isAbsorbing && this.scene.time.now >= this._skillCastEndTime) {
+      const skillCountByPhase = { 1: 1, 2: 2, 3: 3 };
       const count = skillCountByPhase[this.phase] || 1;
-      const allSkills = ['blackhole', 'light', 'timeslow', 'mirror'];
+      const allSkills = ['blackhole', 'light', 'timeslow'];
       const chosen = Phaser.Math.RND.shuffle([...allSkills]).slice(0, count);
       chosen.forEach((skillName, i) => {
-        this.scene.time.delayedCall(i * 1800, () => {
+        this.scene.time.delayedCall(i * 2000, () => {
           if (this.alive) this._castFinalSkillWithIntro(skillName);
         });
       });
-      this.specialTimer = [null, 8, 10, 14][this.phase] || 8;
+      this.specialTimer = [null, 8, 10, 12][this.phase] || 8;
+      // 잠금: 마지막 스킬 시작(i * 2000) + 스킬 최장 지속 5000ms + 여유 500ms
+      this._skillCastEndTime = this.scene.time.now + (count - 1) * 2000 + 5500;
     }
 
     // 메인보스 페이즈 전환 (최대 HP 기준 비율)
@@ -947,10 +952,20 @@ export default class Boss extends Phaser.Events.EventEmitter {
     });
     this.cloneSprites = [];
 
-    const positions = [
-      { x: this.sprite.x - 120, y: this.sprite.y + 40 },
-      { x: this.sprite.x + 120, y: this.sprite.y + 40 }
-    ];
+    // HP 50% 이하면 화면 내 랜덤 위치에 분신 소환
+    let positions;
+    if (this.hp <= this._maxHp * 0.5) {
+      const cam = this.scene.cameras.main;
+      positions = Array.from({ length: 2 }, () => ({
+        x: cam.scrollX + Phaser.Math.Between(80, cam.width  - 80),
+        y: cam.scrollY + Phaser.Math.Between(80, cam.height - 80)
+      }));
+    } else {
+      positions = [
+        { x: this.sprite.x - 120, y: this.sprite.y + 40 },
+        { x: this.sprite.x + 120, y: this.sprite.y + 40 }
+      ];
+    }
 
     positions.forEach(pos => {
       const clone = scene.add.image(pos.x, pos.y, this.sprite.texture.key)
@@ -1039,14 +1054,14 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.cloneSprites.forEach(clone => {
       if (!clone || !clone.active) return;
 
-      const angle = Phaser.Math.Angle.Between(
-        clone.x,
-        clone.y,
-        player.sprite.x,
-        player.sprite.y
+      const base = Phaser.Math.Angle.Between(
+        clone.x, clone.y,
+        player.sprite.x, player.sprite.y
       );
 
-      this._spawnBossBullet(clone.x, clone.y, angle, 180, 1.1);
+      [-0.25, 0, 0.25].forEach(offset => {
+        this._spawnBossBullet(clone.x, clone.y, base + offset, 180, 1.1);
+      });
     });
   }
 
@@ -1408,7 +1423,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
           }
 
           scene.tweens.add({
-            targets: beam, alpha: 0, duration: 200,
+            targets: beam, alpha: 0, duration: 2000,
             onComplete: () => { if (beam.active) beam.destroy(); }
           });
         });

@@ -58,21 +58,20 @@ export default class Skill {
           delete e._slowedSpeed;
         }
       });
-      // 탄 속도 복구는 안 함(탄이 이미 날아갔거나 사라짐)
       if (border.active) border.destroy();
     });
   }
 
-  // ── 블랙홀: 플레이어 위치 중심, 지속 흡인, 반경 250px ──
+  // ── 블랙홀: 플레이어 위치 중심, 지속 흡인, 반경 320px ──
   applyBlackhole(player) {
-    const scene = this.scene;
-    const x = player.sprite.x;
-    const y = player.sprite.y;
-    const pullRadius  = 320;  // 흡인 감지 반경
-    const visualMax   = 200;  // 원 최대 반경
-    const duration    = this.duration * 1000;
+    const scene      = this.scene;
+    const x          = player.sprite.x;
+    const y          = player.sprite.y;
+    const pullRadius = 320;
+    const visualMax  = 200;
+    const duration   = this.duration * 1000;
 
-    // 블랙홀 원 시각화
+    // 블랙홀 원 시각화 (scene.add.circle → 물리 바디 없음 → 충돌/벽 없음)
     const circle = scene.add.circle(x, y, 15, 0x110022, 0.92)
       .setDepth(1).setStrokeStyle(5, 0xaa44ff, 1.0);
     scene.tweens.add({ targets: circle, radius: visualMax, duration: 500, ease: 'Back.Out' });
@@ -86,43 +85,41 @@ export default class Skill {
       angle: { min: 0, max: 360 }
     });
 
-    // 지속 흡인 (50ms 간격)
-    const ticks = Math.floor(duration / 50);
-    const pullEvent = scene.time.addEvent({
-      delay: 50,
-      repeat: ticks - 1,
-      callback: () => {
-        if (!circle.active) return;
-
-        // 적 끌어당기기
-        const pullEnemy = (sprite) => {
-          if (!sprite.active || !sprite.body) return;
-          const dx = x - sprite.x, dy = y - sprite.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist > 5 && dist < pullRadius) {
-            const force = 160;
-            sprite.body.velocity.x += (dx / dist) * force;
-            sprite.body.velocity.y += (dy / dist) * force;
-          }
-        };
-        scene.enemyManager?.group?.children.each(pullEnemy);
-        scene.enemyManager?.bossGroup?.children.each(pullEnemy);
-
-        // 적 탄 소멸
-        scene.enemyBullets?.children.each(b => {
-          if (!b.active) return;
-          if (Math.hypot(b.x - x, b.y - y) < visualMax) b.destroy();
-        });
-      }
+    // 범위 내 적 탄 즉시 소멸
+    scene.enemyBullets?.children.each(b => {
+      if (!b.active) return;
+      if (Math.hypot(b.x - x, b.y - y) < visualMax) b.destroy();
     });
 
+    // postupdate 훅: 범위 내 적 속도를 매 프레임 블랙홀 방향으로 절대값 설정
+    // (enemy update 이후 실행되므로 플레이어 추적 속도를 덮어씀 → 벽 현상 없음)
+    const pullCallback = () => {
+      if (!scene.enemyManager) return;
+      const pull = (sprite) => {
+        if (!sprite.active || !sprite.body) return;
+        const dx   = x - sprite.x;
+        const dy   = y - sprite.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > pullRadius || dist < 10) return;
+        const spd  = 150;
+        sprite.body.velocity.x = (dx / dist) * spd;
+        sprite.body.velocity.y = (dy / dist) * spd;
+      };
+      scene.enemyManager.group.children.each(pull);
+      scene.enemyManager.bossGroup?.children.each(pull);
+    };
+
+    scene.events.on('postupdate', pullCallback);
+
     scene.time.delayedCall(duration, () => {
-      pullEvent.remove(false);
-      emitter.destroy();
-      scene.tweens.add({
-        targets: circle, alpha: 0, radius: 20, duration: 300,
-        onComplete: () => { if (circle.active) circle.destroy(); }
-      });
+      scene.events.off('postupdate', pullCallback);
+      if (emitter && emitter.active) emitter.destroy();
+      if (circle && circle.active) {
+        scene.tweens.add({
+          targets: circle, alpha: 0, radius: 20, duration: 300,
+          onComplete: () => { if (circle.active) circle.destroy(); }
+        });
+      }
     });
   }
 
@@ -143,7 +140,6 @@ export default class Skill {
       const cx = cam.scrollX + Phaser.Math.Between(80, 880);
       const cy = cam.scrollY + Phaser.Math.Between(80, 560);
       if (Phaser.Math.Distance.Between(cx, cy, player.sprite.x, player.sprite.y) >= 180) {
-        // 두 분신끼리도 120px 이상 떨어지게
         if (positions.length === 0 || Phaser.Math.Distance.Between(cx, cy, positions[0].x, positions[0].y) >= 120) {
           positions.push({ x: cx, y: cy });
         }
@@ -220,5 +216,4 @@ export default class Skill {
     emitter.explode(20);
     scene.time.delayedCall(800, () => emitter.destroy());
   }
-  
 }
