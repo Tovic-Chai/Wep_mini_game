@@ -49,6 +49,32 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('mb1_cast2', 'assets/images/mini_boss_pattern_1_2.png');
     this.load.image('mb1_cast3', 'assets/images/mini_boss_pattern_1_3.png');
     this.load.image('mb1_cast4', 'assets/images/mini_boss_pattern_1_4.png');
+
+    // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
+    // front(아래) 방향 — open 상태는 boss_mini2 기본 텍스처 사용 (fornt_eye_open.png 는 빈 파일)
+    this.load.image('mb2_front_half2',  'assets/images/mini_boss2_fornt_eye_half2.png');
+    this.load.image('mb2_front_half',   'assets/images/mini_boss2_fornt_eye_half.png');
+    this.load.image('mb2_front_close',  'assets/images/mini_boss2_fornt_eye_close.png');
+    this.load.image('mb2_front_close2', 'assets/images/mini_boss2_fornt_eye_close2.png');
+    this.load.image('mb2_front_close3', 'assets/images/mini_boss2_fornt_eye_close3.png');
+    // right 방향 — open2 사용 (right_eye_open.png 는 빈 파일)
+    this.load.image('mb2_right_open2',  'assets/images/mini_boss2_right_eye_open2.png');
+    this.load.image('mb2_right_half2',  'assets/images/mini_boss2_right_eye_half2.png');
+    this.load.image('mb2_right_half',   'assets/images/mini_boss2_right_eye_half.png');
+    this.load.image('mb2_right_close',  'assets/images/mini_boss2_right_eye_close.png');
+    // up 방향
+    this.load.image('mb2_up_open',  'assets/images/mini_boss2_up_eye_open.png');
+    this.load.image('mb2_up_half',  'assets/images/mini_boss2_up_eye_half.png');
+    this.load.image('mb2_up_close', 'assets/images/mini_boss2_up_eye_close.png');
+
+    // ── 미니보스3 걷기/멈춤 애니메이션 ──
+    this.load.image('mb3_down_walk1',  'assets/images/mini_boss3_down_walk1.png');
+    this.load.image('mb3_down_walk2',  'assets/images/mini_boss3_down_walk2.png');
+    this.load.image('mb3_right_walk1', 'assets/images/mini_boss3_right_walk1.png');
+    this.load.image('mb3_right_walk2', 'assets/images/mini_boss3_right_walk2.png');
+    this.load.image('mb3_up_walk1',    'assets/images/mini_boss3_up_walk.png');
+    this.load.image('mb3_up_walk2',    'assets/images/mini_boss3_up_walk2.png');
+    this.load.image('mb3_stop',        'assets/images/mini_boss3_left_stop.png');
   }
 
   create() {

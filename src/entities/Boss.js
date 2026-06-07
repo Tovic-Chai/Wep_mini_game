@@ -59,17 +59,19 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this._isCasting  = false;
     }
 
-    // ── 미니보스2 눈 깜빡임 상태 ──
+    // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
     if (kind === 'mini2') {
-      this._eyeState = 0;                          // 0=열림, 1=반, 2=감김, 3=반
-      this._eyeTimer = 1.5 + Math.random() * 1.0;
+      this._animDir   = 'front';
+      this._animFrame = 0;
+      this._animTimer = 0;
     }
 
-    // ── 미니보스3 멈춤/걷기 블렌딩 ──
+    // ── 미니보스3 걷기/멈춤 방향 애니메이션 ──
     if (kind === 'mini3') {
       this._stopTimer = 0;
-      this._walkTimer = 0;
-      this._walkBobUp = false;
+      this._animDir   = 'down';
+      this._animFrame = 0;
+      this._animTimer = 0;
     }
 
     // ── 보스별 특수 패턴 타이머 ──
@@ -266,58 +268,129 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  미니보스2 눈 깜빡임 애니메이션
-  //  open(길게) → half-close → closed → half-open 사이클
+  //  미니보스2 방향별 눈 깜빡임 애니메이션
+  //  front(아래): boss_mini2 → half2 → half → close → close2 → close3 → ... → 반복
+  //  right(우): right_open2 → half2 → half → close → ... → 반복  (flipX for left)
+  //  up: up_open → up_half → up_close → up_half → 반복
   // ──────────────────────────────────────────
   _updateMini2Anim(dt) {
     if (!this.sprite?.active) return;
-    this._eyeTimer -= dt;
-    if (this._eyeTimer > 0) return;
 
-    // 0=열림, 1=반감김, 2=완전감김, 3=반열림
-    const EYE = [
-      { tint: null,     dur: 1.8 + Math.random() * 1.5 },  // 열린 상태 (길게)
-      { tint: 0x776677, dur: 0.10 },                        // 반 감김
-      { tint: 0x111011, dur: 0.15 },                        // 완전 감김
-      { tint: 0x776677, dur: 0.10 },                        // 반 열림
-    ];
-
-    this._eyeState = (this._eyeState + 1) % EYE.length;
-    const s = EYE[this._eyeState];
-    this._eyeTimer = s.dur;
-
-    if (s.tint === null) {
-      this.sprite.clearTint();
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
     } else {
-      this.sprite.setTint(s.tint);
+      dir = vy >= 0 ? 'front' : 'up';
     }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+
+    // 각 방향 프레임 시퀀스 [텍스처키, 재생시간(초)]
+    // 프레임 0 = 눈 뜬 상태 (길게 유지) — 실제 시간은 아래에서 랜덤 처리
+    const SEQS = {
+      front: [
+        ['boss_mini2',      0],
+        ['mb2_front_half2', 0.08],
+        ['mb2_front_half',  0.08],
+        ['mb2_front_close', 0.12],
+        ['mb2_front_close2',0.10],
+        ['mb2_front_close3',0.10],
+        ['mb2_front_close2',0.08],
+        ['mb2_front_close', 0.08],
+        ['mb2_front_half',  0.08],
+        ['mb2_front_half2', 0.08],
+      ],
+      right: [
+        ['mb2_right_open2', 0],
+        ['mb2_right_half2', 0.08],
+        ['mb2_right_half',  0.08],
+        ['mb2_right_close', 0.18],
+        ['mb2_right_half',  0.08],
+        ['mb2_right_half2', 0.08],
+      ],
+      up: [
+        ['mb2_up_open',  0],
+        ['mb2_up_half',  0.10],
+        ['mb2_up_close', 0.15],
+        ['mb2_up_half',  0.10],
+      ],
+    };
+
+    const seq = SEQS[dir];
+    this._animFrame = (this._animFrame + 1) % seq.length;
+    const [key, baseDur] = seq[this._animFrame];
+
+    // 프레임 0은 눈 뜬 상태 — 랜덤 대기 후 다음 깜빡임
+    const dur = this._animFrame === 0 ? 2.0 + Math.random() * 1.5 : baseDur;
+    this._animTimer = dur;
+
+    this.sprite.setTexture(key).setFlipX(vx < 0 && dir === 'right');
+    // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
 
   // ──────────────────────────────────────────
-  //  미니보스3 걷기/멈춤 모션 블렌딩
-  //  이동 중: 좌우 미세 흔들림
-  //  정지 중: 크기 맥동 (소환/순간이동 예고)
+  //  미니보스3 방향별 걷기/멈춤 애니메이션
+  //  이동 중: 방향별 walk1↔walk2 교체 (0.18s 간격)
+  //  정지 중(_stopTimer > 0): mb3_stop 고정
+  //  좌측 이동: right 텍스처 + flipX
   // ──────────────────────────────────────────
   _updateMini3Anim(dt) {
     if (!this.sprite?.active) return;
 
-    const base = this._baseScale;
-    this._walkTimer -= dt;
-    if (this._walkTimer > 0) return;
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
 
-    if (this._stopTimer > 0) {
-      // 정지 중: 맥동 (소환/순간이동 예고 느낌)
-      this._walkTimer = 0.14;
-      this._walkBobUp = !this._walkBobUp;
-      const pulse = this._walkBobUp ? 0.04 : -0.02;
-      this.sprite.setScale(base + pulse, base - pulse * 0.5);
-    } else {
-      // 이동 중: 좌우 미세 흔들림 (걷기 느낌)
-      this._walkTimer = 0.18;
-      this._walkBobUp = !this._walkBobUp;
-      const sway = this._walkBobUp ? 0.022 : -0.022;
-      this.sprite.setScale(base + sway, base - sway * 0.6);
+    // 정지 상태: mb3_stop 고정
+    if (this._stopTimer > 0 || !moving) {
+      if (this.sprite.texture.key !== 'mb3_stop') {
+        this.sprite.setTexture('mb3_stop');
+        this.sprite.body.setSize(this._bodySize, this._bodySize);
+      }
+      this._animTimer = 0;
+      return;
     }
+
+    // 방향 감지
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'down' : 'up';
+    }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+    this._animTimer = 0.18;
+
+    const WALK = {
+      down:  ['mb3_down_walk1',  'mb3_down_walk2'],
+      right: ['mb3_right_walk1', 'mb3_right_walk2'],
+      up:    ['mb3_up_walk1',    'mb3_up_walk2'],
+    };
+
+    const frames = WALK[dir];
+    this._animFrame = (this._animFrame + 1) % frames.length;
+
+    this.sprite.setTexture(frames[this._animFrame]).setFlipX(vx < 0 && dir === 'right');
+    // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
 
   // ──────────────────────────────────────────
