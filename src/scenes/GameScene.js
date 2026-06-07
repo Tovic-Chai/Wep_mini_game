@@ -11,7 +11,8 @@ export default class GameScene extends Phaser.Scene {
   // ════════════════════════════════════════════
   create() {
     const WORLD = 4000;
-    this.physics.world.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
+    // 물리 경계를 wrap 기준(±2000)보다 훨씬 크게 설정 → 플레이어가 경계에 닿지 않음
+    this.physics.world.setBounds(-50000, -50000, 100000, 100000);
 
     // ── 배경 (시차 스크롤) ──
     this.bgFar = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
