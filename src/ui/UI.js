@@ -20,11 +20,11 @@ export default class UI {
       stroke: '#000', strokeThickness: 3
     }).setOrigin(0.5, 0).setDepth(20).setScrollFactor(0);
 
-    // ── 스킬 슬롯 (Q / E / C) — 하단 ──
+    // ── 스킬 슬롯 (Q / E / R) — 하단 ──
     this.skillSlots = {
       Q: this._makeSkillSlot(s, 16, 596, 'Q'),
       E: this._makeSkillSlot(s, 180, 596, 'E'),
-      C: this._makeSkillSlot(s, 344, 596, 'C')
+      R: this._makeSkillSlot(s, 344, 596, 'R')
     };
 
     // ── 패시브 무기 HUD (우측 하단) ──
@@ -92,7 +92,7 @@ export default class UI {
     this.timerText.setColor(remain <= 60 ? '#ff4444' : '#ffffff');
 
     // 스킬 슬롯
-    for (const k of ['Q', 'E', 'C']) {
+    for (const k of ['Q', 'E', 'R']) {
       const skill = p.skills[k];
       const cd = p.skillCooldowns[k];
       let text;

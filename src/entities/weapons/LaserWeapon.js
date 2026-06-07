@@ -15,11 +15,11 @@ export default class LaserWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,
-      { damage: 35, count: 1, length: 520, width: 18, cooldown: 3.2 }, // Lv1
-      { damage: 50, count: 1, length: 600, width: 20, cooldown: 2.9 }, // Lv2
-      { damage: 65, count: 2, length: 700, width: 22, cooldown: 2.6 }, // Lv3
-      { damage: 85, count: 2, length: 800, width: 25, cooldown: 2.3 }, // Lv4
-      { damage: 115, count: 3, length: 900, width: 30, cooldown: 2.0 }, // Lv5
+      { damage: 52, count: 1, length: 520, width: 18, cooldown: 3.2 }, // Lv1
+      { damage: 75, count: 1, length: 600, width: 20, cooldown: 2.9 }, // Lv2
+      { damage: 98, count: 2, length: 700, width: 22, cooldown: 2.6 }, // Lv3
+      { damage: 128, count: 2, length: 800, width: 25, cooldown: 2.3 }, // Lv4
+      { damage: 172, count: 3, length: 900, width: 30, cooldown: 2.0 }, // Lv5
     ];
 
     const s = STATS[this.level];

@@ -18,11 +18,11 @@ export default class PoisonWeapon extends PassiveWeapon {
   applyLevelStats() {
     const STATS = [
       null,
-      { damage: 8, radius: 75, duration: 4.0, cooldown: 4.5, count: 1 },
-      { damage: 11, radius: 85, duration: 4.5, cooldown: 4.0, count: 1 },
-      { damage: 14, radius: 95, duration: 5.0, cooldown: 3.5, count: 1 },
-      { damage: 18, radius: 105, duration: 5.5, cooldown: 3.0, count: 2 },
-      { damage: 24, radius: 120, duration: 6.0, cooldown: 2.5, count: 2 },
+      { damage: 12, radius: 75, duration: 4.0, cooldown: 4.5, count: 1 },
+      { damage: 16, radius: 85, duration: 4.5, cooldown: 4.0, count: 1 },
+      { damage: 21, radius: 95, duration: 5.0, cooldown: 3.5, count: 1 },
+      { damage: 27, radius: 105, duration: 5.5, cooldown: 3.0, count: 2 },
+      { damage: 36, radius: 120, duration: 6.0, cooldown: 2.5, count: 2 },
     ];
 
     const s = STATS[this.level];

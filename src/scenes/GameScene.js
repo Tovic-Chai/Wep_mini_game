@@ -11,7 +11,8 @@ export default class GameScene extends Phaser.Scene {
   // ════════════════════════════════════════════
   create() {
     const WORLD = 4000;
-    this.physics.world.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
+    // 물리 경계를 wrap 기준(±2000)보다 훨씬 크게 설정 → 플레이어가 경계에 닿지 않음
+    this.physics.world.setBounds(-50000, -50000, 100000, 100000);
 
     // ── 배경 (시차 스크롤) ──
     this.bgFar = this.add.tileSprite(480, 320, 960, 640, 'bg_space_far')
@@ -39,7 +40,7 @@ export default class GameScene extends Phaser.Scene {
 
     // ── 카메라 ──
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
-    this.cameras.main.setBounds(-WORLD / 2, -WORLD / 2, WORLD, WORLD);
+    // setBounds 제거 → 카메라가 감싸기 후 새 위치를 자유롭게 추적 가능
 
     // ── 타이밍 / 상태 ──
     this.gameTime = 0;
@@ -79,7 +80,7 @@ export default class GameScene extends Phaser.Scene {
         if (!bullet.active || !enemySprite.active) return;
         const enemy = enemySprite.parentRef;
         if (!enemy) return;
-        enemy.takeDamage(p.attackPower);
+        enemy.takeDamage(bullet.damage ?? p.attackPower);
         bullet.destroy();
       }
     );
@@ -91,7 +92,7 @@ export default class GameScene extends Phaser.Scene {
         if (!bullet.active || !bossSprite.active) return;
         const boss = bossSprite.parentRef;
         if (!boss) return;
-        boss.takeDamage(p.attackPower);
+        boss.takeDamage(bullet.damage ?? p.attackPower);
         bullet.destroy();
       }
     );
@@ -182,14 +183,15 @@ export default class GameScene extends Phaser.Scene {
 
     // 엔티티 업데이트
     this.player.update(dt, this.cursors, this.keys);
+    this._wrapPlayer();
     this.enemyManager.update(dt, this.gameTime);
 
-    // ── 보스 스폰 타임라인 (스펙 기준) ──
-    // 2:00 미니보스 1 → Q 스킬 획득
-    // 4:00 미니보스 2 → E 스킬 획득
-    // 6:00 미니보스 3 → C 스킬 획득
-    // 8:00 메인보스
-    if (this.spawnedMiniBosses < 1 && this.gameTime >= 10) this.spawnMiniBoss(1);
+    // ── 보스 스폰 타임라인 (카운트다운 10분 기준) ──
+    // 8분 남을 때(2분 경과) 미니보스 1 → Q 스킬 획득
+    // 6분 남을 때(4분 경과) 미니보스 2 → E 스킬 획득
+    // 4분 남을 때(6분 경과) 미니보스 3 → R 스킬 획득
+    // 2분 남을 때(8분 경과) 메인보스
+    if (this.spawnedMiniBosses < 1 && this.gameTime >= 120) this.spawnMiniBoss(1);
     if (this.spawnedMiniBosses < 2 && this.gameTime >= 240) this.spawnMiniBoss(2);
     if (this.spawnedMiniBosses < 3 && this.gameTime >= 360) this.spawnMiniBoss(3);
     if (!this.boss && this.gameTime >= 480) this.spawnMainBoss();
@@ -221,6 +223,29 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.ui.update(this.gameTime);
+  }
+
+  // ════════════════════════════════════════════
+  //  맵 감싸기 (토로이달 월드)
+  // ════════════════════════════════════════════
+  _wrapPlayer() {
+    const s    = this.player.sprite;
+    const HALF = 2000; // WORLD / 2
+    let wx = s.x, wy = s.y, wrapped = false;
+
+    if (s.x >  HALF) { wx = s.x - HALF * 2; wrapped = true; }
+    if (s.x < -HALF) { wx = s.x + HALF * 2; wrapped = true; }
+    if (s.y >  HALF) { wy = s.y - HALF * 2; wrapped = true; }
+    if (s.y < -HALF) { wy = s.y + HALF * 2; wrapped = true; }
+
+    if (wrapped) {
+      s.setPosition(wx, wy);
+      // 카메라 lerp로 인한 긴 이동 방지: follow를 일시 중단 후 즉시 스냅
+      const cam = this.cameras.main;
+      cam.stopFollow();
+      cam.centerOn(wx, wy);
+      cam.startFollow(s, true, 0.1, 0.1);
+    }
   }
 
   // ════════════════════════════════════════════
@@ -960,8 +985,8 @@ export default class GameScene extends Phaser.Scene {
 
     switch (cardDef) {
       case 'attack': {
-        const vals = { 노말: [5, 10], 레어: [8, 12], 에픽: [12, 15], 레전드: [17, 17] };
-        const [lo, hi] = vals[rarity.name] || [5, 10];
+        const vals = { 노말: [12, 20], 레어: [18, 28], 에픽: [28, 38], 레전드: [45, 45] };
+        const [lo, hi] = vals[rarity.name] || [12, 20];
         const v = Phaser.Math.Between(lo, hi);
         return {
           label: `⚔️ 공격력\n+${v}`,

@@ -4,397 +4,129 @@ export default class Enemy {
     this.type = type;
 
     // 타입별 텍스처
-    // 이미지가 아직 없으니까 M04~M08은 기존 이미지 임시 사용
     const textureKey = {
       M01: 'enemy',
       M02: 'enemy_m02',
-      M03: 'enemy_m03',
-
-      M04: 'enemy',      // 탱커
-      M05: 'enemy_m02',  // 돌진
-      M06: 'enemy_m03',  // 거리 유지형
-      M07: 'enemy',      // 빠른 소형
-      M08: 'enemy_m03'   // 엘리트
+      M03: 'enemy_m03_front'
     }[type] || 'enemy';
 
-    this.sprite = scene.physics.add.sprite(x, y, textureKey).setDepth(1);
+    this.sprite = scene.physics.add.sprite(x, y, textureKey)
+      .setDepth(1)
+      .setDisplaySize(40, 40);
+    this.sprite.body.setSize(36, 36);
     this.sprite.parentRef = this;
 
-    // 몬스터별 기본 스탯
-    // 경험치 규칙:
-    // M01, M02, M03 = 4
-    // M04, M05 = 8
-    // M06, M07, M08 = 12
+    // 몬스터별 기본 스탯 + 경험치 색상
     const base = {
       M01: {
         hp: 32,
         speed: 90,
-        exp: 4,
+        exp: 3,
         dmg: 12,
-        expTint: 0x22cc66
+        expTint: 0x22cc66 // 초록
       },
       M02: {
         hp: 24,
         speed: 140,
-        exp: 4,
+        exp: 6,
         dmg: 15,
-        expTint: 0x22cc66
+        expTint: 0x3399ff // 파랑
       },
       M03: {
         hp: 57,
         speed: 70,
-        exp: 4,
+        exp: 5,
         dmg: 8,
-        expTint: 0x22cc66
+        expTint: 0xffaa00 // 주황
       },
-
-      // M04: 탱커 몬스터
-      M04: {
-        hp: 130,
-        speed: 55,
-        exp: 8,
-        dmg: 20,
-        expTint: 0x3399ff
-      },
-
-      // M05: 돌진 몬스터
-      M05: {
-        hp: 75,
-        speed: 105,
-        exp: 8,
-        dmg: 22,
-        expTint: 0x3399ff
-      },
-
-      // M06: 거리 유지형 몬스터
-      M06: {
-        hp: 95,
-        speed: 80,
-        exp: 12,
-        dmg: 18,
-        expTint: 0xffaa00
-      },
-
-      // M07: 빠른 소형 몬스터
-      M07: {
-        hp: 45,
-        speed: 190,
-        exp: 12,
-        dmg: 16,
-        expTint: 0xffaa00
-      },
-
-      // M08: 후반 엘리트 몬스터
-      M08: {
-        hp: 180,
-        speed: 95,
-        exp: 12,
-        dmg: 28,
-        expTint: 0xffaa00
-      }
     }[type] || {
       hp: 20,
       speed: 50,
-      exp: 4,
+      exp: 5,
       dmg: 10,
       expTint: 0xffffff
     };
 
-    // 시간에 따른 체력 증가
-    // 30초마다 체력 15% 증가
-    const hpMultiplier = 1 + Math.floor(gameTime / 30) * 0.15;
+    // gameTime + 플레이어 레벨 복합 스케일링
+    const playerLevel = scene.player?.level || 1;
+    const timeFactor  = 1 + Math.floor(gameTime / 30) * 0.13;
+    const levelFactor = 1 + (playerLevel - 1) * 0.12;
+    const hpMultiplier = timeFactor * levelFactor;
 
     this.maxHp = Math.floor(base.hp * hpMultiplier);
     this.hp = this.maxHp;
     this.speed = base.speed;
     this.expValue = base.exp;
     this.expTint = base.expTint;
-    this.contactDmg = base.dmg;
+    // 접촉 데미지도 gameTime에 따라 소폭 증가
+    const dmgFactor = 1 + Math.floor(gameTime / 60) * 0.10;
+    this.contactDmg = Math.round(base.dmg * dmgFactor);
     this.alive = true;
     this.lifetime = 0;
-    // 얼음 둔화 상태
-    this.slowTimer = 0;
-    this.slowMultiplier = 1;
-
-    // M05 돌진용 변수
-    this.dashCooldown = 2.2;
-    this.dashTimer = Phaser.Math.FloatBetween(0.3, 1.5);
-
-    // 돌진 전 경고 시간
-    this.dashTelegraph = 0;
-
-    // 실제 돌진할 방향
-    this.dashAngle = 0;
-
-    // 경고 선 길이
-    this.dashDistance = 220;
-
-    // 돌진 상태
-    this.dashState = 'idle';
-
-    // 고정된 돌진 시작점 / 끝점
-    this.dashStartX = x;
-    this.dashStartY = y;
-    this.dashTargetX = x;
-    this.dashTargetY = y;
-
-    // 경고 이펙트
-    this.dashGuide = null;
-
-    if (this.type === 'M05') {
-      this.dashGuide = scene.add.graphics().setDepth(2);
-    }
-
+    if (type === 'M03') this._m03TexKey = 'enemy_m03_front';
   }
 
   update(dt) {
     if (!this.alive) return;
-
     this.lifetime += dt;
 
-    // 둔화 시간 감소
-    if (this.slowTimer > 0) {
-      this.slowTimer -= dt;
-
-      if (this.slowTimer <= 0) {
-        this.slowTimer = 0;
-        this.slowMultiplier = 1;
-      }
-    }
-
     const player = this.scene.player.sprite;
-
     const angle = Phaser.Math.Angle.Between(
-      this.sprite.x,
-      this.sprite.y,
-      player.x,
-      player.y
+      this.sprite.x, this.sprite.y, player.x, player.y
     );
 
-    const dist = Phaser.Math.Distance.Between(
-      this.sprite.x,
-      this.sprite.y,
-      player.x,
-      player.y
-    );
-
-    // M03: 처음 1.2초 멈췄다가 접근
     if (this.type === 'M03') {
+      // 잠시 멈췄다가 접근
       if (this.lifetime < 1.2) {
         this.sprite.setVelocity(0, 0);
       } else {
-        this.moveToPlayer(angle, this.speed);
+        this.sprite.setVelocity(
+          Math.cos(angle) * this.speed,
+          Math.sin(angle) * this.speed
+        );
       }
+    } else {
+      this.sprite.setVelocity(
+        Math.cos(angle) * this.speed,
+        Math.sin(angle) * this.speed
+      );
     }
 
-    // M05: 일정 시간마다 빠르게 돌진
-    else if (this.type === 'M05') {
-      this.updateDash(dt, angle);
+    // 이미지가 왼쪽을 향하므로 오른쪽 이동 시 flipX
+    if (this.type === 'M01' || this.type === 'M02') {
+      const vx = this.sprite.body.velocity.x;
+      if (Math.abs(vx) > 5) this.sprite.setFlipX(vx > 0);
     }
 
-    // M06: 플레이어에게 너무 가까우면 물러나고, 멀면 접근
-    else if (this.type === 'M06') {
-      this.updateKeepDistance(angle, dist);
-    }
-
-    // M08: 엘리트 몬스터, 살짝 흔들리면서 접근
-    else if (this.type === 'M08') {
-      this.updateEliteMove(angle);
-    }
-
-    // 나머지 몬스터는 기본 추적
-    else {
-      this.moveToPlayer(angle, this.speed);
+    // M03 방향별 텍스처 전환 (front/right)
+    if (this.type === 'M03') {
+      const vx = this.sprite.body.velocity.x;
+      const vy = this.sprite.body.velocity.y;
+      const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
+      const newKey = (moving && Math.abs(vx) > Math.abs(vy)) ? 'enemy_m03_right' : 'enemy_m03_front';
+      const newFlip = newKey === 'enemy_m03_right' && vx < 0;
+      if (newKey !== this._m03TexKey || this.sprite.flipX !== newFlip) {
+        this._m03TexKey = newKey;
+        this.sprite.setTexture(newKey).setFlipX(newFlip).setDisplaySize(40, 40);
+        this.sprite.body.setSize(36, 36);
+      }
     }
 
     // 너무 멀어지면 디스폰
+    const dist = Phaser.Math.Distance.Between(
+      this.sprite.x, this.sprite.y, player.x, player.y
+    );
     if (dist > 1200) this.destroy();
-  }
-
-  moveToPlayer(angle, speed) {
-    const finalSpeed = speed * this.slowMultiplier;
-
-    this.sprite.setVelocity(
-      Math.cos(angle) * finalSpeed,
-      Math.sin(angle) * finalSpeed
-    );
-  }
-
-  updateDash(dt, angle) {
-    const dashSpeed = 520 * this.slowMultiplier;
-
-    // 실제 돌진 중
-    if (this.dashState === 'dashing') {
-      const remain = Phaser.Math.Distance.Between(
-        this.sprite.x,
-        this.sprite.y,
-        this.dashTargetX,
-        this.dashTargetY
-      );
-
-      // 끝점 도달
-      if (remain <= dashSpeed * dt + 6) {
-        this.sprite.setPosition(this.dashTargetX, this.dashTargetY);
-        this.sprite.setVelocity(0, 0);
-        this.dashState = 'idle';
-        this._clearDashWarning();
-        return;
-      }
-
-      this.scene.physics.moveTo(
-        this.sprite,
-        this.dashTargetX,
-        this.dashTargetY,
-        dashSpeed
-      );
-
-      this._drawDashWarning(true);
-      return;
-    }
-
-    // 돌진 전 경고
-    if (this.dashTelegraph > 0) {
-      this.dashTelegraph -= dt;
-
-      // 경고 중에는 멈춤
-      this.sprite.setVelocity(0, 0);
-
-      this._drawDashWarning(false);
-
-      if (this.dashTelegraph <= 0) {
-        this.dashState = 'dashing';
-      }
-
-      return;
-    }
-
-    this.dashTimer -= dt;
-
-    // 돌진 준비 시작
-    if (this.dashTimer <= 0) {
-      this.dashTimer = this.dashCooldown;
-      this.dashAngle = angle;
-
-      // 시작 시점 고정
-      this.dashStartX = this.sprite.x;
-      this.dashStartY = this.sprite.y;
-
-      // 끝점 고정
-      this.dashTargetX = this.dashStartX + Math.cos(this.dashAngle) * this.dashDistance;
-      this.dashTargetY = this.dashStartY + Math.sin(this.dashAngle) * this.dashDistance;
-
-      this.dashTelegraph = 0.55;
-      return;
-    }
-
-    // 평소에는 추적
-    this.moveToPlayer(angle, this.speed);
-  }
-
-  _drawDashWarning(isDashing = false) {
-    if (!this.dashGuide) return;
-    if (!this.sprite || !this.sprite.active) return;
-
-    const g = this.dashGuide;
-    g.clear();
-
-    // 시작점 / 끝점은 고정
-    const startX = this.dashStartX;
-    const startY = this.dashStartY;
-    const endX = this.dashTargetX;
-    const endY = this.dashTargetY;
-
-    // 현재 몬스터 위치
-    const currentX = this.sprite.x;
-    const currentY = this.sprite.y;
-
-    const alpha = isDashing ? 0.35 : 0.75;
-    const lineWidth = isDashing ? 10 : 7;
-
-    // 고정 경로
-    g.lineStyle(lineWidth, 0xff3333, alpha);
-    g.beginPath();
-    g.moveTo(startX, startY);
-    g.lineTo(endX, endY);
-    g.strokePath();
-
-    // 중심 밝은 선
-    g.lineStyle(2, 0xffffff, isDashing ? 0.45 : 0.8);
-    g.beginPath();
-    g.moveTo(startX, startY);
-    g.lineTo(endX, endY);
-    g.strokePath();
-
-    // 끝 지점 표시
-    g.lineStyle(3, 0xff6666, alpha);
-    g.strokeCircle(endX, endY, 16);
-
-    // 현재 몬스터 위치 표시
-    g.lineStyle(2, 0xff0000, alpha);
-    g.strokeCircle(currentX, currentY, 20);
-  }
-
-  _clearDashWarning() {
-    if (this.dashGuide) {
-      this.dashGuide.clear();
-    }
-  }
-
-  updateKeepDistance(angle, dist) {
-    // 너무 가까우면 뒤로 이동
-    if (dist < 220) {
-      const finalSpeed = this.speed * this.slowMultiplier;
-
-      this.sprite.setVelocity(
-        -Math.cos(angle) * finalSpeed,
-        -Math.sin(angle) * finalSpeed
-      );
-    }
-
-    // 너무 멀면 접근
-    else if (dist > 330) {
-      this.moveToPlayer(angle, this.speed);
-    }
-
-    // 적당한 거리면 멈춤
-    else {
-      this.sprite.setVelocity(0, 0);
-    }
-  }
-
-  updateEliteMove(angle) {
-    const wave = Math.sin(this.lifetime * 5) * 0.8;
-    const finalAngle = angle + wave;
-    const finalSpeed = this.speed * this.slowMultiplier;
-
-    this.sprite.setVelocity(
-      Math.cos(finalAngle) * finalSpeed,
-      Math.sin(finalAngle) * finalSpeed
-    );
-  }
-
-  applySlow(multiplier = 0.55, duration = 2) {
-    if (!this.alive) return;
-
-    // 더 강한 둔화가 들어오면 강한 쪽 유지
-    this.slowMultiplier = Math.min(this.slowMultiplier, multiplier);
-
-    // 지속시간은 더 긴 쪽 유지
-    this.slowTimer = Math.max(this.slowTimer, duration);
   }
 
   takeDamage(amount) {
     if (!this.alive) return;
-
     this.hp -= amount;
 
     // 피격 이펙트
     this.sprite.setTint(0xff4444);
-
     this.scene.time.delayedCall(80, () => {
-      if (this.sprite && this.sprite.active) {
-        this.sprite.clearTint();
-      }
+      if (this.sprite && this.sprite.active) this.sprite.clearTint();
     });
 
     if (this.hp <= 0) this.die();
@@ -402,14 +134,7 @@ export default class Enemy {
 
   die() {
     if (!this.alive) return;
-
     this.alive = false;
-
-    this._clearDashWarning();
-    if (this.dashGuide) {
-      this.dashGuide.destroy();
-      this.dashGuide = null;
-    }
 
     // 폭발 파티클
     const emitter = this.scene.add.particles(
@@ -436,20 +161,14 @@ export default class Enemy {
 
     orb.expValue = this.expValue;
     orb.setDepth(1);
+
+    // 몬스터 종류별 경험치 색상
     orb.setTint(this.expTint);
 
-    // 경험치 그룹별 크기
-    if (['M01', 'M02', 'M03'].includes(this.type)) {
-      orb.setScale(1.0);
-    }
-
-    if (['M04', 'M05'].includes(this.type)) {
-      orb.setScale(1.2);
-    }
-
-    if (['M06', 'M07', 'M08'].includes(this.type)) {
-      orb.setScale(1.4);
-    }
+    // 몬스터 종류별 경험치 구슬 크기 차이
+    if (this.type === 'M01') orb.setScale(1.0);
+    if (this.type === 'M02') orb.setScale(1.15);
+    if (this.type === 'M03') orb.setScale(1.1);
 
     if (!this.scene.expOrbs) {
       this.scene.expOrbs = this.scene.physics.add.group();
@@ -465,17 +184,7 @@ export default class Enemy {
   }
 
   destroy() {
-    this._clearDashWarning();
-
-    if (this.dashGuide) {
-      this.dashGuide.destroy();
-      this.dashGuide = null;
-    }
-
-    if (this.sprite && this.sprite.active) {
-      this.sprite.destroy();
-    }
-
+    if (this.sprite && this.sprite.active) this.sprite.destroy();
     this.alive = false;
   }
 }

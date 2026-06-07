@@ -19,11 +19,11 @@ export default class BladeWeapon extends PassiveWeapon {
     const STATS = [
       null,
       // damage, count, cooldown, speed, scale, hitRadius, pierce
-      { damage: 35, count: 1, cooldown: 2.4, speed: 420, scale: 0.80, hitRadius: 24, pierce: 1 }, // Lv1
-      { damage: 50, count: 1, cooldown: 2.1, speed: 450, scale: 1.00, hitRadius: 30, pierce: 2 }, // Lv2
-      { damage: 65, count: 2, cooldown: 1.9, speed: 480, scale: 1.20, hitRadius: 36, pierce: 2 }, // Lv3
-      { damage: 85, count: 2, cooldown: 1.6, speed: 520, scale: 1.40, hitRadius: 43, pierce: 3 }, // Lv4
-      { damage: 115, count: 3, cooldown: 1.3, speed: 560, scale: 1.65, hitRadius: 52, pierce: 4 }, // Lv5
+      { damage: 52, count: 1, cooldown: 2.4, speed: 420, scale: 0.80, hitRadius: 24, pierce: 1 }, // Lv1
+      { damage: 75, count: 1, cooldown: 2.1, speed: 450, scale: 1.00, hitRadius: 30, pierce: 2 }, // Lv2
+      { damage: 98, count: 2, cooldown: 1.9, speed: 480, scale: 1.20, hitRadius: 36, pierce: 2 }, // Lv3
+      { damage: 128, count: 2, cooldown: 1.6, speed: 520, scale: 1.40, hitRadius: 43, pierce: 3 }, // Lv4
+      { damage: 172, count: 3, cooldown: 1.3, speed: 560, scale: 1.65, hitRadius: 52, pierce: 4 }, // Lv5
     ];
 
     const s = STATS[this.level];

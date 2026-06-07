@@ -5,45 +5,90 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.kind = kind;
 
     const keyMap = {
-      mini1: 'boss_mini1',
-      mini2: 'boss_mini2',
-      mini3: 'boss_mini3',
-      final: 'boss_final_phase1'
+      mini1: 'mb1_back_close',
+      mini2: 'mb2_front_half2',
+      mini3: 'mb3_stop',
+      final: 'main_boss_down'
     };
     const scaleMap = {
-      mini1: 0.2, mini2: 0.38, mini3: 0.2, final: 0.4
+      mini1: 0.5, mini2: 0.3, mini3: 0.26, final: 0.4  // mini1: 500×500px 이미지 기준
     };
 
     this.sprite = scene.physics.add.sprite(x, y, keyMap[kind] || 'boss_mini1')
       .setDepth(3)
-      .setScale(scaleMap[kind] || 0.2);
+      .setScale(scaleMap[kind] || 0.3);
+
+    // setScale() does NOT resize the Arcade Physics body — must set explicitly.
+    const bodySizeMap = { mini1: 250, mini2: 220, mini3: 220, final: 240 };
+    const bs = bodySizeMap[kind] || 220;
+    this.sprite.body.setSize(bs, bs);
+
     this.sprite.parentRef = this;
+    this._bodySize  = bs;                     // setTexture 후 body 재적용용
 
     this.alive = true;
     this.attackTimer = 0;
 
     // 보스별 스탯 및 획득 스킬
     const configs = {
-      mini1: { hp: 1500, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
-      mini2: { hp: 2500, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
-      mini3: { hp: 4000, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
-      final: { hp: 15000, skill: null }
+      mini1: { hp: 480, skill: { id: 'slow', name: '시간 슬로우', duration: 5, cooldown: 45, effect: 'timeSlow' } },
+      mini2: { hp: 800, skill: { id: 'blackhole', name: '블랙홀', duration: 3, cooldown: 60, effect: 'blackhole' } },
+      mini3: { hp: 1280, skill: { id: 'clone', name: '분신', duration: 8, cooldown: 75, effect: 'clone' } },
+      final: { hp: 4800, skill: null }
     };
 
     const cfg = configs[kind] || configs.mini1;
-    this.hp = cfg.hp;
+
+    // 플레이어 레벨 비례 HP 스케일
+    const playerLevel = scene.player?.level || 1;
+    const hpScale = 1 + (playerLevel - 1) * 0.22;
+    this.hp = Math.floor(cfg.hp * hpScale);
     this.skill = cfg.skill;
 
     // 메인보스 전용
-    if (kind === 'final') this.phase = 1;
+    if (kind === 'final') {
+      this.phase = 1;
+      this._bobAngle    = 0;
+      this._isAbsorbing = false;
+    }
 
     this.angleOffset = 0;
+    this._baseScale = scaleMap[kind] || 0.3;
+
+    // 이동 속도 (슬로우 스킬이 이 값을 직접 수정)
+    const baseSpeedMap = { mini1: 45, mini2: 55, mini3: 70, final: 60 };
+    this.speed = baseSpeedMap[kind] || 45;
+
+    // ── 미니보스1 애니메이션 상태 ──
+    if (kind === 'mini1') {
+      this._animTimer  = 0;
+      this._animFrame  = 0;
+      this._animDir    = 'back';
+      this._isCasting  = false;
+    }
+
+    // ── 미니보스2 방향별 눈 깜빡임 애니메이션 ──
+    if (kind === 'mini2') {
+      this._animDir   = 'front';
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    // ── 미니보스3 걷기/멈춤 방향 애니메이션 ──
+    if (kind === 'mini3') {
+      this._stopTimer = 0;
+      this._animDir   = 'down';
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
     // ── 보스별 특수 패턴 타이머 ──
-    this.patternTimer = 0;
-    this.specialTimer = 0;
-    this.teleportTimer = 4;
-    this.cloneSprites = [];
-    this.moveLockTimer = 0; // 순간이동 직후 잠깐 이동 정지
+    this.patternTimer      = 9;  // 초기 유예 시간 + 첫 시전까지 9초
+    this.specialTimer      = 0;
+    this.teleportTimer     = 4;
+    this._skillCastEndTime = 0;  // 스킬 시전 잠금 해제 시각 (ms)
+    this._finalSkillIdx    = -1; // 최종보스 스킬 순환 인덱스
+    this.cloneSprites      = [];
 
     // 체력바 (보스 HP 바)
     this._buildHpBar();
@@ -53,27 +98,27 @@ export default class Boss extends Phaser.Events.EventEmitter {
   //  체력바 생성 (화면 상단 고정)
   // ──────────────────────────────────────────
   _buildHpBar() {
-    const scene = this.scene;
-    const barW = (this.kind === 'final') ? 600 : 400;
-    const barX = 480;
-
-    // 경험치바가 Player.js에서 y = 42에 있으니까,
-    // 미니보스 체력바는 그 아래인 y = 70으로 이동
-    const barY = (this.kind === 'final') ? 28 : 72;
-
-    const label = (this.kind === 'final') ? 'FINAL BOSS' : `MINI BOSS ${this.kind.slice(-1)}`;
-    const color = (this.kind === 'final') ? 0xff2200 : 0xff6600;
+    const scene  = this.scene;
+    const barW   = (this.kind === 'final') ? 600 : 400;
+    const barX   = 480;
+    // 상단 HUD 패널(y 0~54) 아래에 배치해 타이머·HP 텍스트와 겹치지 않게 한다
+    const barY   = (this.kind === 'final') ? 84 : 76;
+    const labelMap = {
+      mini1: 'Black Magician',
+      mini2: 'Otherworldly Being',
+      mini3: 'The Unseen One',
+      final: 'FINAL BOSS'
+    };
+    const label = labelMap[this.kind] || 'BOSS';
+    const color  = (this.kind === 'final') ? 0xff2200 : 0xff6600;
 
     this.hpBarBg = scene.add.rectangle(barX, barY, barW + 4, 18, 0x000000)
-      .setScrollFactor(0).setDepth(25).setAlpha(0.8);
+      .setScrollFactor(0).setDepth(45).setAlpha(0.8);
     this.hpBarFill = scene.add.rectangle(barX - barW / 2, barY, barW, 14, color)
-      .setScrollFactor(0).setDepth(26).setOrigin(0, 0.5);
+      .setScrollFactor(0).setDepth(46).setOrigin(0, 0.5);
     this.hpBarLabel = scene.add.text(barX, barY - 18, label, {
-      fontSize: '13px',
-      color: '#ffddaa',
-      stroke: '#000',
-      strokeThickness: 3
-    }).setScrollFactor(0).setDepth(27).setOrigin(0.5);
+      fontSize: '15px', fontStyle: 'bold', color: '#ffddaa', stroke: '#000', strokeThickness: 4
+    }).setScrollFactor(0).setDepth(46).setOrigin(0.5);
 
     this._maxHp = this.hp;
     this._barW = barW;
@@ -101,9 +146,6 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.patternTimer -= dt;
     this.specialTimer -= dt;
     this.teleportTimer -= dt;
-    if (this.moveLockTimer > 0) {
-      this.moveLockTimer -= dt;
-    }
 
     if (this.attackTimer <= 0) {
       // 최종 보스는 페이즈가 올라갈수록 공격이 빨라짐
@@ -117,8 +159,8 @@ export default class Boss extends Phaser.Events.EventEmitter {
     }
 
     // ── 미니보스 특수 패턴 ──
-    if (this.kind === 'mini1' && this.patternTimer <= 0) {
-      this.patternTimer = 5;
+    if (this.kind === 'mini1' && this.patternTimer <= 0 && !this._isCasting) {
+      this.patternTimer = 9;
       this.castSlowZone();
     }
 
@@ -139,26 +181,27 @@ export default class Boss extends Phaser.Events.EventEmitter {
       }
     }
 
-    // ── 최종 보스 특수 패턴 ──
-    if (this.kind === 'final' && this.specialTimer <= 0) {
-      if (this.phase === 1) {
-        this.specialTimer = 4;
-        this.fireAimedShots();
-      } else if (this.phase === 2) {
-        this.specialTimer = 5;
-        this.fireLaserWarning();
-      } else if (this.phase === 3) {
-        this.specialTimer = 6;
-        this.castBlackhole();
-        this.summonClones();
-        this.fireLaserWarning();
-      }
+    // ── 최종 보스 스킬 시스템 (거울·흡수 제거, 스킬 중 재시전 잠금) ──
+    if (this.kind === 'final' && this.specialTimer <= 0 &&
+        !this._isAbsorbing && this.scene.time.now >= this._skillCastEndTime) {
+      const skillCountByPhase = { 1: 1, 2: 2, 3: 3 };
+      const count = skillCountByPhase[this.phase] || 1;
+      const allSkills = ['blackhole', 'light', 'timeslow'];
+      const chosen = Phaser.Math.RND.shuffle([...allSkills]).slice(0, count);
+      chosen.forEach((skillName, i) => {
+        this.scene.time.delayedCall(i * 2000, () => {
+          if (this.alive) this._castFinalSkillWithIntro(skillName);
+        });
+      });
+      this.specialTimer = [null, 8, 10, 12][this.phase] || 8;
+      // 잠금: 마지막 스킬 시작(i * 2000) + 스킬 최장 지속 5000ms + 여유 500ms
+      this._skillCastEndTime = this.scene.time.now + (count - 1) * 2000 + 5500;
     }
 
-    // 메인보스 페이즈 전환
+    // 메인보스 페이즈 전환 (최대 HP 기준 비율)
     if (this.kind === 'final') {
-      if (this.phase === 1 && this.hp <= 10000) this.setPhase(2);
-      if (this.phase === 2 && this.hp <= 5000) this.setPhase(3);
+      if (this.phase === 1 && this.hp <= this._maxHp * 0.66) this.setPhase(2);
+      if (this.phase === 2 && this.hp <= this._maxHp * 0.33) this.setPhase(3);
     }
 
     // 플레이어 추적
@@ -167,16 +210,40 @@ export default class Boss extends Phaser.Events.EventEmitter {
       this.sprite.x, this.sprite.y, player.x, player.y
     );
 
-    const speedMap = {
-      mini1: 45, mini2: 55, mini3: 70,
-    };
-    let moveSpeed = speedMap[this.kind] || 45;
-    if (this.kind === 'final') {
-      moveSpeed = [null, 60, 85, 110][this.phase] || 60;
-    }
+    let moveSpeed = this.speed;
 
-    if (this.moveLockTimer > 0) {
+    // mini3 정지 타이머 차감
+    if (this.kind === 'mini3' && this._stopTimer > 0) this._stopTimer -= dt;
+
+    const mini3Stopped = this.kind === 'mini3' && this._stopTimer > 0;
+
+    if ((this.kind === 'mini1' && this._isCasting) || mini3Stopped) {
       this.sprite.setVelocity(0, 0);
+    } else if (this.kind === 'final') {
+      // 부유 사인파 Y 이동
+      this._bobAngle += dt * 2.2;
+      const bobForce = Math.cos(this._bobAngle) * 38;
+      if (this._isAbsorbing) {
+        this.sprite.setVelocity(0, bobForce);
+      } else {
+        this.sprite.setVelocity(
+          Math.cos(angle) * moveSpeed,
+          Math.sin(angle) * moveSpeed + bobForce
+        );
+      }
+      // 방향별 텍스처 교체 (흡수 중에는 고정)
+      if (!this._isAbsorbing) {
+        const vxF = this.sprite.body.velocity.x;
+        const vyF = this.sprite.body.velocity.y;
+        if (Math.abs(vxF) > Math.abs(vyF)) {
+          this.sprite.setTexture('main_boss_right').setFlipX(vxF < 0);
+        } else if (vyF < 0) {
+          this.sprite.setTexture('main_boss_up').setFlipX(false);
+        } else {
+          this.sprite.setTexture('main_boss_down').setFlipX(false);
+        }
+        this.sprite.body.setSize(this._bodySize, this._bodySize);
+      }
     } else {
       this.sprite.setVelocity(
         Math.cos(angle) * moveSpeed,
@@ -184,7 +251,188 @@ export default class Boss extends Phaser.Events.EventEmitter {
       );
     }
 
+    if (this.kind === 'mini1' && !this._isCasting) this._updateMini1Anim(dt);
+    if (this.kind === 'mini2') this._updateMini2Anim(dt);
+    if (this.kind === 'mini3') this._updateMini3Anim(dt);
     this._updateHpBar();
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스1 방향별 프레임 애니메이션
+  //  down(backward): eye_close→half→open→half 사이클
+  //  up(frontward) : base↔alpha 사이클
+  //  right/left    : eye_close→half→open→half (flipX)
+  // ──────────────────────────────────────────
+  _updateMini1Anim(dt) {
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'back' : 'front';
+    }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+    this._animTimer = 0.22;
+
+    const BACK  = ['mb1_back_close',  'mb1_back_half',  'mb1_back_open',  'mb1_back_half'];
+    const FRONT = ['mb1_front_base',  'mb1_front_alpha'];
+    const RIGHT = ['mb1_right_close', 'mb1_right_half', 'mb1_right_open', 'mb1_right_half'];
+
+    if (dir === 'back') {
+      this._animFrame = (this._animFrame + 1) % BACK.length;
+      this.sprite.setTexture(BACK[this._animFrame]).setFlipX(false);
+    } else if (dir === 'front') {
+      this._animFrame = (this._animFrame + 1) % FRONT.length;
+      this.sprite.setTexture(FRONT[this._animFrame]).setFlipX(false);
+    } else {
+      this._animFrame = (this._animFrame + 1) % RIGHT.length;
+      this.sprite.setTexture(RIGHT[this._animFrame]).setFlipX(vx < 0);
+    }
+
+    // setTexture() resets body size to texture dimensions — restore after every frame change
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스2 방향별 눈 깜빡임 애니메이션
+  //  front(아래): boss_mini2 → half2 → half → close → close2 → close3 → ... → 반복
+  //  right(우): right_open2 → half2 → half → close → ... → 반복  (flipX for left)
+  //  up: up_open → up_half → up_close → up_half → 반복
+  // ──────────────────────────────────────────
+  _updateMini2Anim(dt) {
+    if (!this.sprite?.active) return;
+
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'front' : 'up';
+    }
+
+    // 각 방향 프레임 시퀀스 [텍스처키, 재생시간(초)]
+    // 프레임 0 = 눈 뜬 상태 (길게 유지)
+    const SEQS = {
+      front: [
+        ['mb2_front_half2', 0],
+        ['mb2_front_half2', 0.08],
+        ['mb2_front_half',  0.08],
+        ['mb2_front_close', 0.12],
+        ['mb2_front_close2',0.10],
+        ['mb2_front_close3',0.10],
+        ['mb2_front_close2',0.08],
+        ['mb2_front_close', 0.08],
+        ['mb2_front_half',  0.08],
+        ['mb2_front_half2', 0.08],
+      ],
+      right: [
+        ['mb2_right_open2', 0],
+        ['mb2_right_half2', 0.08],
+        ['mb2_right_half',  0.08],
+        ['mb2_right_close', 0.18],
+        ['mb2_right_half',  0.08],
+        ['mb2_right_half2', 0.08],
+      ],
+      up: [
+        ['mb2_up_open',  0],
+        ['mb2_up_half',  0.10],
+        ['mb2_up_close', 0.15],
+        ['mb2_up_half',  0.10],
+      ],
+    };
+
+    // 방향 전환 시: 즉시 눈 뜬 프레임 적용 + 홀드 타이머 설정
+    // (타이머만 0으로 리셋하면 다음 틱에 frame 1로 점프해 갭이 생김)
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      const [openKey] = SEQS[dir][0];
+      this.sprite.setTexture(openKey).setFlipX(vx < 0 && dir === 'right');
+      this.sprite.body.setSize(this._bodySize, this._bodySize);
+      this._animTimer = 2.0 + Math.random() * 1.5;
+      return;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+
+    const seq = SEQS[dir];
+    this._animFrame = (this._animFrame + 1) % seq.length;
+    const [key, baseDur] = seq[this._animFrame];
+
+    // 프레임 0으로 돌아오면 눈 뜬 상태를 랜덤 시간 유지
+    const dur = this._animFrame === 0 ? 2.0 + Math.random() * 1.5 : baseDur;
+    this._animTimer = dur;
+
+    this.sprite.setTexture(key).setFlipX(vx < 0 && dir === 'right');
+    // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
+  }
+
+  // ──────────────────────────────────────────
+  //  미니보스3 방향별 걷기/멈춤 애니메이션
+  //  이동 중: 방향별 walk1↔walk2 교체 (0.18s 간격)
+  //  정지 중(_stopTimer > 0): mb3_stop 고정
+  //  좌측 이동: right 텍스처 + flipX
+  // ──────────────────────────────────────────
+  _updateMini3Anim(dt) {
+    if (!this.sprite?.active) return;
+
+    const vx = this.sprite.body.velocity.x;
+    const vy = this.sprite.body.velocity.y;
+    const moving = Math.abs(vx) > 5 || Math.abs(vy) > 5;
+
+    // 정지 상태: mb3_stop 고정
+    if (this._stopTimer > 0 || !moving) {
+      if (this.sprite.texture.key !== 'mb3_stop') {
+        this.sprite.setTexture('mb3_stop');
+        this.sprite.body.setSize(this._bodySize, this._bodySize);
+      }
+      this._animTimer = 0;
+      return;
+    }
+
+    // 방향 감지
+    let dir;
+    if (Math.abs(vx) > Math.abs(vy)) {
+      dir = 'right';
+    } else {
+      dir = vy >= 0 ? 'down' : 'up';
+    }
+
+    if (dir !== this._animDir) {
+      this._animDir   = dir;
+      this._animFrame = 0;
+      this._animTimer = 0;
+    }
+
+    this._animTimer -= dt;
+    if (this._animTimer > 0) return;
+    this._animTimer = 0.18;
+
+    const WALK = {
+      down:  ['mb3_down_walk1',  'mb3_down_walk2'],
+      right: ['mb3_right_walk1', 'mb3_stop', 'mb3_right_walk2', 'mb3_stop'],
+      up:    ['mb3_up_walk1',    'mb3_up_walk2'],
+    };
+
+    const frames = WALK[dir];
+    this._animFrame = (this._animFrame + 1) % frames.length;
+
+    this.sprite.setTexture(frames[this._animFrame]).setFlipX(vx < 0 && dir === 'right');
+    // setTexture() 는 body 크기를 텍스처 치수로 덮어씀 — 매번 명시 복원
+    this.sprite.body.setSize(this._bodySize, this._bodySize);
   }
 
   // ──────────────────────────────────────────
@@ -248,26 +496,17 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  원형 탄막
+  //  원형 전방위 탄막 (count발을 360도로 균등 발사)
   // ──────────────────────────────────────────
   fireCirclePattern(count = 16, speed = 120) {
-    if (!this.scene.enemyBullets) return;
-
-    const base = Phaser.Math.DegToRad(this.angleOffset || 0);
-
+    const base = Phaser.Math.DegToRad(this.angleOffset);
     for (let i = 0; i < count; i++) {
       const angle = base + (Math.PI * 2 / count) * i;
-
-      this._spawnBossBullet(
-        this.sprite.x,
-        this.sprite.y,
-        angle,
-        speed,
-        1.1
-      );
+      const bx = this.sprite.x + Math.cos(angle) * 20;
+      const by = this.sprite.y + Math.sin(angle) * 20;
+      this._spawnBossBullet(bx, by, angle, speed, 1.2);
     }
-
-    this.angleOffset += 8;
+    this.angleOffset += 10;
   }
 
   // ──────────────────────────────────────────
@@ -300,7 +539,43 @@ export default class Boss extends Phaser.Events.EventEmitter {
 
     const x = player.sprite.x;
     const y = player.sprite.y;
-    const radius = 105;
+    const radius = 150;
+
+    // ── 캐스팅 시작: 이동 정지 + 4단계 텍스처 전환 ──
+    // setTexture()는 내부적으로 body.setSize(textureW, textureH)를 호출해
+    // body offset이 바뀌고 다음 postUpdate에서 스프라이트가 튀어 사라짐.
+    // 매 프레임 교체 후 scale · body · depth를 명시 복원한다.
+    const castScale = this._baseScale * 1.12;
+    const bs = this._bodySize;
+
+    const _applyFrame = (key) => {
+      if (!this.alive || !this.sprite?.active) return;
+      this.sprite
+        .setTexture(key)
+        .setFlipX(false)
+        .setScale(castScale)
+        .setDepth(10);            // 마법진(depth 3-6) 위에 항상 보이도록
+      this.sprite.body.setSize(bs, bs);
+    };
+
+    this._isCasting = true;
+    _applyFrame('mb1_cast1');
+
+    scene.time.delayedCall(350, () => _applyFrame('mb1_cast2'));
+    scene.time.delayedCall(650, () => _applyFrame('mb1_cast3'));
+    // mb1_cast4 파일이 투명(6892b)이라 사용 안 함 — cast3를 유지
+
+    // 마법진 종료(약 6300ms) 후 이동 재개 + 방향 애니메이션 복원
+    scene.time.delayedCall(6300, () => {
+      if (!this.alive) return;
+      this._isCasting  = false;
+      this._animFrame  = 0;
+      this._animTimer  = 0;
+      if (this.sprite?.active) {
+        this.sprite.setScale(this._baseScale).setDepth(3);
+        this.sprite.body.setSize(bs, bs);
+      }
+    });
 
     // 마법진 오브젝트들을 한 번에 관리
     const magicCircleParts = [];
@@ -584,29 +859,14 @@ export default class Boss extends Phaser.Events.EventEmitter {
   castBlackhole() {
     const scene = this.scene;
     const player = scene.player;
+    if (!player || !player.sprite) return;
 
-    if (!player || !player.sprite || !player.sprite.active || !player.sprite.body) return;
-
-    let x;
-    let y;
-
-    // 미니보스2는 블랙홀이 미니보스 근처에 생성
-    if (this.kind === 'mini2') {
-      const pos = this.getBlackholePositionNearBoss();
-      x = pos.x;
-      y = pos.y;
-    }
-
-    // 파이널 보스는 기존처럼 플레이어 근처에 생성
-    else {
-      x = player.sprite.x + Phaser.Math.Between(-120, 120);
-      y = player.sprite.y + Phaser.Math.Between(-90, 90);
-    }
-
+    const x = player.sprite.x + Phaser.Math.Between(-120, 120);
+    const y = player.sprite.y + Phaser.Math.Between(-90, 90);
     const radius = this.kind === 'final' ? 150 : 120;
 
     const hole = scene.add.circle(x, y, 20, 0x050010, 0.85)
-      .setDepth(6)
+      .setDepth(1)
       .setStrokeStyle(4, 0x8844ff, 0.9);
 
     scene.tweens.add({
@@ -620,7 +880,7 @@ export default class Boss extends Phaser.Events.EventEmitter {
       delay: 50,
       repeat: 50,
       callback: () => {
-        if (!hole.active || !player.sprite || !player.sprite.active || !player.sprite.body) return;
+        if (!hole.active || !player.sprite.active) return;
 
         const px = player.sprite.x;
         const py = player.sprite.y;
@@ -664,42 +924,48 @@ export default class Boss extends Phaser.Events.EventEmitter {
     });
   }
 
-  getBlackholePositionNearBoss() {
-    const boss = this.sprite;
-
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-
-    // 미니보스 근처 거리
-    const distance = Phaser.Math.FloatBetween(90, 180);
-
-    let x = boss.x + Math.cos(angle) * distance;
-    let y = boss.y + Math.sin(angle) * distance;
-
-    // 맵 밖으로 나가지 않게 제한
-    const world = this.scene.physics.world.bounds;
-    const margin = 80;
-
-    x = Phaser.Math.Clamp(x, world.x + margin, world.x + world.width - margin);
-    y = Phaser.Math.Clamp(y, world.y + margin, world.y + world.height - margin);
-
-    return { x, y };
-  }
-
   // ──────────────────────────────────────────
   //  미니보스 3 / 최종보스: 분신 소환
   // ──────────────────────────────────────────
   summonClones() {
     const scene = this.scene;
 
+    // 분신 소환 전 잠깐 멈추는 모션 (mini3 전용)
+    if (this.kind === 'mini3') {
+      this._stopTimer = 2.0;
+      if (this.sprite?.active) {
+        // 소환 예고: 약간 스케일 업 후 복귀
+        scene.tweens.add({
+          targets: this.sprite,
+          scaleX: this._baseScale * 1.15,
+          scaleY: this._baseScale * 1.15,
+          duration: 200,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.InOut'
+        });
+      }
+    }
+
     this.cloneSprites.forEach(c => {
       if (c && c.active) c.destroy();
     });
     this.cloneSprites = [];
 
-    const positions = [
-      { x: this.sprite.x - 120, y: this.sprite.y + 40 },
-      { x: this.sprite.x + 120, y: this.sprite.y + 40 }
-    ];
+    // HP 50% 이하면 화면 내 랜덤 위치에 분신 소환
+    let positions;
+    if (this.hp <= this._maxHp * 0.5) {
+      const cam = this.scene.cameras.main;
+      positions = Array.from({ length: 2 }, () => ({
+        x: cam.scrollX + Phaser.Math.Between(80, cam.width  - 80),
+        y: cam.scrollY + Phaser.Math.Between(80, cam.height - 80)
+      }));
+    } else {
+      positions = [
+        { x: this.sprite.x - 120, y: this.sprite.y + 40 },
+        { x: this.sprite.x + 120, y: this.sprite.y + 40 }
+      ];
+    }
 
     positions.forEach(pos => {
       const clone = scene.add.image(pos.x, pos.y, this.sprite.texture.key)
@@ -736,17 +1002,19 @@ export default class Boss extends Phaser.Events.EventEmitter {
   }
 
   // ──────────────────────────────────────────
-  //  미니보스 3: 플레이어 주변으로 순간이동
+  //  미니보스 3: 순간이동
   // ──────────────────────────────────────────
   teleportNearPlayer() {
     const scene = this.scene;
     const player = scene.player;
     if (!player || !player.sprite) return;
 
+    // 순간이동 직전 잠깐 멈춤
+    this._stopTimer = 0.5;
+
     const oldX = this.sprite.x;
     const oldY = this.sprite.y;
 
-    // 사라지는 이펙트
     const flash1 = scene.add.circle(oldX, oldY, 50, 0xaa44ff, 0.45)
       .setDepth(5);
 
@@ -755,59 +1023,24 @@ export default class Boss extends Phaser.Events.EventEmitter {
       alpha: 0,
       scale: 1.8,
       duration: 250,
-      onComplete: () => {
-        if (flash1.active) flash1.destroy();
-      }
+      onComplete: () => flash1.destroy()
     });
 
-    // 플레이어에게 너무 가까이 안 붙도록 거리 증가
-    const minDist = 400;
-    const maxDist = 500;
-
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const dist = Phaser.Math.Between(minDist, maxDist);
+    const dist = Phaser.Math.Between(180, 260);
 
-    const targetX = player.sprite.x + Math.cos(angle) * dist;
-    const targetY = player.sprite.y + Math.sin(angle) * dist;
+    this.sprite.x = player.sprite.x + Math.cos(angle) * dist;
+    this.sprite.y = player.sprite.y + Math.sin(angle) * dist;
 
-    // 순간이동 위치 예고 표시
-    const warning = scene.add.circle(targetX, targetY, 42, 0xaa44ff, 0.16)
-      .setStrokeStyle(3, 0xdd99ff, 0.9)
+    const flash2 = scene.add.circle(this.sprite.x, this.sprite.y, 50, 0xaa44ff, 0.45)
       .setDepth(5);
 
     scene.tweens.add({
-      targets: warning,
-      alpha: 0.45,
-      scale: 1.25,
-      duration: 180,
-      yoyo: true,
-      repeat: 1
-    });
-
-    scene.time.delayedCall(320, () => {
-      if (warning.active) warning.destroy();
-
-      // 실제 순간이동
-      this.sprite.x = targetX;
-      this.sprite.y = targetY;
-
-      // 순간이동 직후 바로 돌진하지 않게 잠깐 정지
-      this.moveLockTimer = 0.55;
-      this.sprite.setVelocity(0, 0);
-
-      // 나타나는 이펙트
-      const flash2 = scene.add.circle(this.sprite.x, this.sprite.y, 55, 0xaa44ff, 0.45)
-        .setDepth(5);
-
-      scene.tweens.add({
-        targets: flash2,
-        alpha: 0,
-        scale: 1.8,
-        duration: 280,
-        onComplete: () => {
-          if (flash2.active) flash2.destroy();
-        }
-      });
+      targets: flash2,
+      alpha: 0,
+      scale: 1.8,
+      duration: 250,
+      onComplete: () => flash2.destroy()
     });
   }
 
@@ -821,14 +1054,14 @@ export default class Boss extends Phaser.Events.EventEmitter {
     this.cloneSprites.forEach(clone => {
       if (!clone || !clone.active) return;
 
-      const angle = Phaser.Math.Angle.Between(
-        clone.x,
-        clone.y,
-        player.sprite.x,
-        player.sprite.y
+      const base = Phaser.Math.Angle.Between(
+        clone.x, clone.y,
+        player.sprite.x, player.sprite.y
       );
 
-      this._spawnBossBullet(clone.x, clone.y, angle, 180, 1.1);
+      [-0.25, 0, 0.25].forEach(offset => {
+        this._spawnBossBullet(clone.x, clone.y, base + offset, 180, 1.1);
+      });
     });
   }
 
@@ -1006,14 +1239,245 @@ export default class Boss extends Phaser.Events.EventEmitter {
   setPhase(n) {
     if (this.phase === n) return;
     this.phase = n;
-    if (n === 2) {
-      this.sprite.setTexture('boss_final_phase2');
-      this.attackTimer = 0.5;
-    } else if (n === 3) {
-      this.sprite.setTexture('boss_final_phase3');
-      this.attackTimer = 0.4;
+    // 페이즈별 속도 업데이트 (슬로우가 걸려 있지 않을 때만)
+    if (!this._slowedSpeed) {
+      this.speed = [null, 60, 85, 110][n] || 60;
+    } else {
+      // 슬로우 중: 원래 속도 기준값만 갱신, 실제 this.speed는 슬로우 해제 때 복원
+      this._slowedSpeed = [null, 60, 85, 110][n] || 60;
     }
-    // 페이즈 전환 flash
-    this.scene.cameras.main.flash(400, 255, 0, 0);
+    this.scene.cameras.main.flash(500, 255, 100, 0);
+  }
+
+  // ──────────────────────────────────────────
+  //  최종보스 스킬 인트로 애니메이션 → 효과 발동
+  // ──────────────────────────────────────────
+  _castFinalSkillWithIntro(skillName) {
+    const scene = this.scene;
+    if (!this.alive || !this.sprite?.active) return;
+
+    const keyMap = {
+      blackhole: 'boss_skill_blackhole',
+      light:     'boss_skill_light',
+      timeslow:  'boss_skill_clock',
+      mirror:    'boss_skill_mirror',
+    };
+
+    const player = scene.player;
+    const introAngle = Phaser.Math.Angle.Between(
+      this.sprite.x, this.sprite.y, player.sprite.x, player.sprite.y
+    );
+    const ix = this.sprite.x + Math.cos(introAngle) * 90;
+    const iy = this.sprite.y + Math.sin(introAngle) * 90;
+
+    const img = scene.add.image(ix, iy, keyMap[skillName])
+      .setDepth(8).setScale(0.05).setAlpha(0.85);
+
+    scene.tweens.add({
+      targets: img,
+      scaleX: 0.85, scaleY: 0.85,
+      duration: 700,
+      ease: 'Back.Out',
+      onComplete: () => {
+        scene.time.delayedCall(180, () => {
+          scene.tweens.add({
+            targets: img,
+            alpha: 0, scaleX: 1.2, scaleY: 1.2,
+            duration: 280,
+            onComplete: () => { if (img.active) img.destroy(); }
+          });
+          this._applyFinalSkillEffect(skillName);
+        });
+      }
+    });
+  }
+
+  _applyFinalSkillEffect(skillName) {
+    switch (skillName) {
+      case 'blackhole': this._finalBlackhole(); break;
+      case 'light':     this._finalLightSword(); break;
+      case 'timeslow':  this._finalTimeSlow(); break;
+      case 'mirror':    this._finalMirrorAbsorb(); break;
+    }
+  }
+
+  // ── 블랙홀: 500ms 경고 → 보스 중심으로 플레이어·몬스터 끌어당기기 ──
+  _finalBlackhole() {
+    const scene = this.scene;
+    if (!this.alive) return;
+
+    const bx = this.sprite.x;
+    const by = this.sprite.y;
+    const player = scene.player;
+
+    const hole = scene.add.circle(bx, by, 10, 0x220033, 0.85)
+      .setDepth(1).setStrokeStyle(4, 0x8844ff, 0.9);
+
+    // 경고 단계: 500ms 동안 원 성장 + 깜빡임
+    scene.tweens.add({ targets: hole, radius: 50, duration: 500, ease: 'Sine.Out' });
+    scene.tweens.add({ targets: hole, alpha: 0.4, duration: 120, yoyo: true, repeat: 3 });
+
+    // 500ms 경고 후 흡인 시작
+    let pullEvent = null;
+    scene.time.delayedCall(500, () => {
+      if (!hole.active || !this.alive) return;
+      scene.tweens.add({ targets: hole, radius: 150, duration: 400, ease: 'Back.Out' });
+
+      pullEvent = scene.time.addEvent({
+        delay: 50,
+        repeat: 59,
+        callback: () => {
+          if (!hole.active) return;
+
+          if (player.sprite?.active && player.sprite.body) {
+            const pDist = Phaser.Math.Distance.Between(player.sprite.x, player.sprite.y, bx, by);
+            if (pDist < 350) {
+              const pa = Phaser.Math.Angle.Between(player.sprite.x, player.sprite.y, bx, by);
+              const pullStrength = (player.speed || 200) * 0.5 / 20;
+              player.sprite.body.velocity.x += Math.cos(pa) * pullStrength;
+              player.sprite.body.velocity.y += Math.sin(pa) * pullStrength;
+            }
+          }
+
+          if (scene.enemyManager?.group) {
+            scene.enemyManager.group.children.each(e => {
+              if (!e.active) return;
+              const ed = Phaser.Math.Distance.Between(e.x, e.y, bx, by);
+              if (ed < 500) {
+                const ea = Phaser.Math.Angle.Between(e.x, e.y, bx, by);
+                e.body.velocity.x += Math.cos(ea) * 55;
+                e.body.velocity.y += Math.sin(ea) * 55;
+              }
+            });
+          }
+        }
+      });
+    });
+
+    scene.time.delayedCall(3500, () => {
+      if (pullEvent) pullEvent.remove(false);
+      scene.tweens.add({
+        targets: hole, alpha: 0, scale: 1.5, duration: 300,
+        onComplete: () => { if (hole.active) hole.destroy(); }
+      });
+    });
+  }
+
+  // ── 빛·검: 경고(800ms) → 30도 부채꼴 5줄 빔 ──
+  _finalLightSword() {
+    const scene = this.scene;
+    if (!this.alive) return;
+
+    const player = scene.player;
+    if (!player?.sprite) return;
+
+    // 경고 시점의 보스 좌표 스냅샷 → 빔도 동일 좌표 사용
+    const originX = this.sprite.x;
+    const originY = this.sprite.y;
+    const baseAngle = Phaser.Math.Angle.Between(originX, originY, player.sprite.x, player.sprite.y);
+    const beamLength = 320;
+    const beamCount  = 5;
+
+    // 경고 선 표시 (반투명, 깜빡임)
+    const warnings = [];
+    for (let i = 0; i < beamCount; i++) {
+      const a = baseAngle + Phaser.Math.DegToRad(-12 + i * 6);
+      const mx = originX + Math.cos(a) * beamLength / 2;
+      const my = originY + Math.sin(a) * beamLength / 2;
+      const warn = scene.add.rectangle(mx, my, beamLength, 10, 0xffee44, 0.25)
+        .setDepth(8).setRotation(a);
+      warnings.push(warn);
+    }
+    scene.tweens.add({ targets: warnings, alpha: 0.65, duration: 160, yoyo: true, repeat: 3 });
+    if (this.sprite?.active) {
+      scene.tweens.add({ targets: this.sprite, alpha: 0.3, duration: 130, yoyo: true, repeat: 3 });
+    }
+
+    // 800ms 후 실제 빔 발사 (스냅샷 좌표 기준)
+    scene.time.delayedCall(800, () => {
+      warnings.forEach(w => { if (w.active) w.destroy(); });
+      if (!this.alive) return;
+
+      for (let i = 0; i < beamCount; i++) {
+        const beamAngle = baseAngle + Phaser.Math.DegToRad(-12 + i * 6);
+        scene.time.delayedCall(i * 100, () => {
+          if (!this.alive) return;
+
+          const mx = originX + Math.cos(beamAngle) * beamLength / 2;
+          const my = originY + Math.sin(beamAngle) * beamLength / 2;
+          const beam = scene.add.rectangle(mx, my, beamLength, 18, 0xffee44, 0.9)
+            .setDepth(9).setRotation(beamAngle);
+
+          scene.cameras.main.flash(120, 255, 230, 100);
+
+          const px = player.sprite.x;
+          const py = player.sprite.y;
+          const line = new Phaser.Geom.Line(
+            originX, originY,
+            originX + Math.cos(beamAngle) * beamLength,
+            originY + Math.sin(beamAngle) * beamLength
+          );
+          if (Phaser.Geom.Line.GetShortestDistance(line, new Phaser.Geom.Point(px, py)) < 22) {
+            player.takeDamage(18);
+            if (player.hp <= 0 && scene._triggerGameOver) scene._triggerGameOver();
+          }
+
+          scene.tweens.add({
+            targets: beam, alpha: 0, duration: 2000,
+            onComplete: () => { if (beam.active) beam.destroy(); }
+          });
+        });
+      }
+    });
+  }
+
+  // ── 시계: 전역 타임슬로우 5초 ──
+  _finalTimeSlow() {
+    const scene = this.scene;
+    scene.time.timeScale = 0.4;
+    scene.tweens.timeScale = 0.4;
+    scene.cameras.main.flash(200, 200, 200, 255);
+
+    const border = scene.add.rectangle(480, 320, 960, 640, 0x0000ff, 0)
+      .setStrokeStyle(6, 0x4488ff, 0.7).setScrollFactor(0).setDepth(60);
+
+    scene.time.delayedCall(5 * 1000 / 0.4, () => {
+      scene.time.timeScale = 1;
+      scene.tweens.timeScale = 1;
+      if (border.active) border.destroy();
+    });
+  }
+
+  // ── 거울·흡수: 이동 정지 + HP 회복 ──
+  _finalMirrorAbsorb() {
+    const scene = this.scene;
+    if (!this.alive || !this.sprite?.active) return;
+
+    this._isAbsorbing = true;
+    this.sprite.setTint(0xffdd88);
+
+    const pulseImg = scene.add.image(this.sprite.x, this.sprite.y, 'boss_skill_mirror')
+      .setDepth(7).setAlpha(0.55).setScale(0.6);
+    scene.tweens.add({
+      targets: pulseImg, scaleX: 0.8, scaleY: 0.8,
+      duration: 300, yoyo: true, repeat: 5,
+      onComplete: () => { if (pulseImg.active) pulseImg.destroy(); }
+    });
+
+    const healEvent = scene.time.addEvent({
+      delay: 100,
+      repeat: 34,
+      callback: () => {
+        if (!this.alive) return;
+        this.hp = Math.min(this._maxHp, this.hp + this._maxHp * 0.005);
+        this._updateHpBar();
+      }
+    });
+
+    scene.time.delayedCall(3500, () => {
+      if (healEvent) healEvent.remove(false);
+      this._isAbsorbing = false;
+      if (this.sprite?.active) this.sprite.clearTint();
+    });
   }
 }
